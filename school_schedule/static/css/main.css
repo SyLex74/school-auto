@@ -1,0 +1,205 @@
+/* main.css - Основные стили (упрощенная бело-синяя версия) */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    line-height: 1.5;
+    color: #1e293b; /* Темно-синий/серый для текста */
+    background-color: #ffffff; /* Чисто белый фон */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+main {
+    flex: 1;
+    padding: 30px 0;
+}
+
+/* Заголовки */
+h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #0b3b5c; /* Темно-синий */
+    margin-bottom: 1rem;
+}
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0b3b5c;
+    margin-bottom: 0.75rem;
+}
+h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #0b3b5c;
+    margin-bottom: 0.5rem;
+}
+.section-title {
+    text-align: center;
+    margin-bottom: 30px;
+}
+/* Убираем декоративную полоску после заголовка */
+
+/* Утилиты */
+.hidden {
+    display: none !important;
+}
+
+/* --- Главная страница (максимально просто) --- */
+.hero {
+    background-color: #e6f0fa; /* Очень светлый синий */
+    padding: 40px 0;
+    margin-bottom: 40px;
+    border-bottom: 2px solid #b0c4de; /* Спокойная синяя граница */
+}
+.hero .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+}
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #0b3b5c;
+    margin-bottom: 15px;
+}
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* Демо таблица */
+.demo-schedule {
+    background: white;
+    border: 2px solid #d0e0f0;
+    border-radius: 6px;
+    padding: 15px;
+}
+.demo-header {
+    font-weight: 600;
+    color: #0b3b5c;
+    margin-bottom: 15px;
+    text-align: center;
+    border-bottom: 2px solid #b0c4de;
+    padding-bottom: 8px;
+}
+.demo-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.demo-table th {
+    background-color: #e6f0fa;
+    color: #0b3b5c;
+    font-weight: 600;
+    padding: 10px 8px;
+    text-align: center;
+    border: 1px solid #b0c4de;
+}
+.demo-table td {
+    padding: 8px;
+    border: 1px solid #d0e0f0;
+    color: #1e293b;
+}
+.demo-table td:first-child {
+    font-weight: 600;
+    background-color: #f0f7ff;
+}
+
+/* Секция преимуществ */
+.features {
+    padding: 40px 0;
+}
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+.feature-card {
+    background: #f8fcff;
+    border: 2px solid #d0e0f0;
+    border-radius: 6px;
+    padding: 25px 20px;
+    text-align: center;
+}
+.feature-icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+.feature-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #0b3b5c;
+    margin-bottom: 10px;
+}
+.feature-text {
+    color: #2c3e50;
+}
+
+/* Секция инструкций */
+.instructions {
+    padding: 40px 0;
+    background-color: #f8fcff;
+    border-top: 2px solid #d0e0f0;
+    border-bottom: 2px solid #d0e0f0;
+}
+.steps {
+    max-width: 800px;
+    margin: 0 auto;
+}
+.step {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: white;
+    border: 2px solid #d0e0f0;
+    border-radius: 6px;
+}
+.step-number {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    background-color: #0b3b5c;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+.step-content h3 {
+    margin-bottom: 5px;
+}
+.step-content p {
+    color: #2c3e50;
+}
+
+/* Секция призыва к действию */
+.cta {
+    padding: 50px 0;
+    text-align: center;
+}
+.cta h2 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
+.cta p {
+    color: #2c3e50;
+    margin-bottom: 25px;
+}

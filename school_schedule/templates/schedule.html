@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Создать расписание{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/schedule.css' %}">
+<link rel="stylesheet" href="{% static 'css/modal.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Создание расписания</h1>
+        <p class="page-subtitle">Создайте расписание уроков для одного дня</p>
+    </div>
+
+    <div class="day-selection">
+        <h2 class="section-title">1. Выберите день недели</h2>
+        <div class="day-buttons">
+            <button class="day-btn" data-day="monday">Понедельник</button>
+            <button class="day-btn" data-day="tuesday">Вторник</button>
+            <button class="day-btn" data-day="wednesday">Среда</button>
+            <button class="day-btn" data-day="thursday">Четверг</button>
+            <button class="day-btn" data-day="friday">Пятница</button>
+            <button class="day-btn" data-day="saturday">Суббота</button>
+        </div>
+    </div>
+
+    <div id="scheduleArea" class="schedule-area hidden">
+        <div class="area-header">
+            <h2 id="selectedDayTitle" class="section-title"></h2>
+            <p class="area-subtitle">Добавьте классы и заполните расписание уроков</p>
+            <div class="view-toggle-wrapper">
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="column">📋 Список</button>
+                    <button class="view-btn" data-view="grid">🔲 Сетка 2×n</button>
+                </div>
+            </div>
+        </div>
+        <div id="classesContainer" class="classes-container column-mode"></div>
+        <div class="controls">
+            <button id="addClassBtn" class="btn btn-outline">➕ Добавить класс</button>
+            <button id="saveScheduleBtn" class="btn btn-outline" style="display: none;">💾 Сохранить расписание</button>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button id="downloadExcelBtn" class="btn btn-primary btn-large" disabled>📥 Скачать Excel</button>
+        <button id="clearAllBtn" class="btn btn-secondary">🗑️ Очистить всё</button>
+    </div>
+</div>
+
+<div id="subjectModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Выберите предмет</h3><button class="modal-close">&times;</button></div>
+        <div class="modal-body">
+            <input type="text" id="subjectSearch" placeholder="Поиск предмета..." class="search-input">
+            <div id="subjectsList" class="items-grid"></div>
+        </div>
+    </div>
+</div>
+
+<div id="classroomModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Выберите кабинет</h3><button class="modal-close">&times;</button></div>
+        <div class="modal-body">
+            <input type="text" id="classroomSearch" placeholder="Поиск кабинета..." class="search-input">
+            <div id="classroomsList" class="items-grid"></div>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="isAuthenticated" value="{{ user.is_authenticated|yesno:'true,false' }}">
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/core/constants.js' %}"></script>
+<script src="{% static 'js/managers/classManager.js' %}"></script>
+<script src="{% static 'js/managers/conflictManager.js' %}"></script>
+<script src="{% static 'js/managers/exportManager.js' %}"></script>
+<script src="{% static 'js/ui/uiManager.js' %}"></script>
+<script src="{% static 'js/core/scheduleCreator.js' %}"></script>
+<script src="{% static 'js/core/main.js' %}"></script>
+
+<script>
+    (function() {
+        function initViewToggle() {
+            const container = document.getElementById('classesContainer');
+            const viewBtns = document.querySelectorAll('.view-btn');
+            if (!container) { setTimeout(initViewToggle, 500); return; }
+            const savedMode = localStorage.getItem('schedule_display_mode') || 'column';
+            if (savedMode === 'grid') {
+                container.classList.remove('column-mode'); container.classList.add('grid-mode');
+                viewBtns.forEach(btn => btn.dataset.view === 'grid' ? btn.classList.add('active') : btn.classList.remove('active'));
+            } else {
+                container.classList.remove('grid-mode'); container.classList.add('column-mode');
+                viewBtns.forEach(btn => btn.dataset.view === 'column' ? btn.classList.add('active') : btn.classList.remove('active'));
+            }
+            viewBtns.forEach(btn => { btn.removeEventListener('click', handleViewClick); btn.addEventListener('click', handleViewClick); });
+        }
+        
+        function handleViewClick(e) {
+            const btn = e.currentTarget;
+            const view = btn.dataset.view;
+            const container = document.getElementById('classesContainer');
+            const viewBtns = document.querySelectorAll('.view-btn');
+            if (!container) return;
+            if (view === 'grid') {
+                container.classList.remove('column-mode'); container.classList.add('grid-mode');
+                localStorage.setItem('schedule_display_mode', 'grid');
+            } else {
+                container.classList.remove('grid-mode'); container.classList.add('column-mode');
+                localStorage.setItem('schedule_display_mode', 'column');
+            }
+            viewBtns.forEach(b => b.dataset.view === view ? b.classList.add('active') : b.classList.remove('active'));
+        }
+        
+        function observeContainer() {
+            const container = document.getElementById('classesContainer');
+            if (!container) return;
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes.length) {
+                        const savedMode = localStorage.getItem('schedule_display_mode') || 'column';
+                        if (savedMode === 'grid' && !container.classList.contains('grid-mode')) {
+                            container.classList.remove('column-mode'); container.classList.add('grid-mode');
+                        } else if (savedMode === 'column' && !container.classList.contains('column-mode')) {
+                            container.classList.remove('grid-mode'); container.classList.add('column-mode');
+                        }
+                    }
+                });
+            });
+            observer.observe(container, { childList: true, subtree: true });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(initViewToggle, 100); setTimeout(observeContainer, 200); });
+        if (window.addEventListener) {
+            window.addEventListener('classesUpdated', function() {
+                const savedMode = localStorage.getItem('schedule_display_mode');
+                const container = document.getElementById('classesContainer');
+                if (container && savedMode === 'grid') { container.classList.remove('column-mode'); container.classList.add('grid-mode'); }
+            });
+        }
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,295 @@
+/* components.css - Упрощенные компоненты (бело-синие) */
+
+/* --- Шапка --- */
+header {
+    background: white;
+    border-bottom: 3px solid #0b3b5c; /* Жирная нижняя граница */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+}
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+.logo-icon {
+    font-size: 24px;
+}
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0b3b5c; /* Просто темно-синий, без градиента */
+}
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+.nav-link {
+    text-decoration: none;
+    color: #2c3e50;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+.nav-link:hover {
+    background-color: #e6f0fa;
+    color: #0b3b5c;
+}
+.nav-link.active {
+    background-color: #0b3b5c;
+    color: white;
+}
+
+/* --- Подвал --- */
+footer {
+    background: #0b3b5c; /* Темно-синий */
+    color: white;
+    padding: 30px 0;
+    margin-top: 40px;
+    border-top: 3px solid #809ab3;
+}
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    text-align: center;
+}
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.footer-logo .logo-text {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.footer-text {
+    color: #d0e0f0;
+    font-size: 0.9rem;
+}
+.footer-links {
+    display: flex;
+    gap: 20px;
+}
+.footer-link {
+    color: #d0e0f0;
+    text-decoration: none;
+    transition: 0.2s;
+}
+.footer-link:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+/* --- Кнопки (плоские, без теней) --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.btn-primary {
+    background-color: #0b3b5c;
+    color: white;
+    border-color: #0b3b5c;
+}
+.btn-primary:hover {
+    background-color: #1f4f70;
+    border-color: #1f4f70;
+}
+.btn-outline {
+    background: white;
+    color: #0b3b5c;
+    border: 2px solid #0b3b5c;
+}
+.btn-outline:hover {
+    background: #e6f0fa;
+}
+.btn-secondary {
+    background: #f0f7ff;
+    color: #0b3b5c;
+    border: 2px solid #b0c4de;
+}
+.btn-secondary:hover {
+    background: #e6f0fa;
+}
+.btn-large {
+    padding: 14px 28px;
+    font-size: 1.1rem;
+}
+
+/* --- Выбор предмета/кабинета (как кнопки) --- */
+.subject-select,
+.classroom-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: white;
+    border: 2px solid #b0c4de;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #1e293b;
+    cursor: pointer;
+    text-align: left;
+    transition: 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+}
+
+/* Стрелка вниз для обоих элементов */
+.subject-select::after,
+.classroom-select::after {
+    content: '▼';
+    font-size: 12px;
+    color: #809ab3;
+    transition: transform 0.15s;
+    margin-left: 8px;
+}
+
+/* Состояния при наведении */
+.subject-select:hover,
+.classroom-select:hover {
+    border-color: #0b3b5c;
+    background: #f8fcff;
+}
+
+.subject-select:hover::after,
+.classroom-select:hover::after {
+    color: #0b3b5c;
+}
+
+/* Активное состояние (когда открыт выпадающий список) */
+.subject-select:active,
+.classroom-select:active {
+    background: #e6f0fa;
+}
+
+/* Отключенное состояние */
+.subject-select:disabled,
+.classroom-select:disabled {
+    background: #f0f7ff;
+    border-color: #d0e0f0;
+    color: #809ab3;
+    cursor: not-allowed;
+}
+
+.subject-select:disabled::after,
+.classroom-select:disabled::after {
+    color: #b0c4de;
+}
+
+/* Состояние "заполнено" (когда предмет/кабинет выбран) */
+.subject-select.subject-filled,
+.classroom-select.classroom-filled {
+    background-color: #e3f2fd;
+    border-color: #0b3b5c;
+    font-weight: 500;
+}
+
+/* Состояние "пропуск" для предметов */
+.subject-select.subject-skip {
+    background-color: #fff3e0;
+    border-color: #ffb74d;
+    color: #b85c00;
+}
+
+.subject-select.subject-skip::after {
+    color: #b85c00;
+}
+
+/* --- Кнопка добавления урока --- */
+.add-row-btn {
+    width: 100%;
+    padding: 12px;
+    background: #f0f7ff;
+    border: 2px dashed #809ab3;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #0b3b5c;
+    cursor: pointer;
+    transition: 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.add-row-btn::before {
+    content: '+';
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+.add-row-btn:hover {
+    background: #e6f0fa;
+    border-color: #0b3b5c;
+}
+
+/* --- Кнопка пропуска урока --- */
+.skip-lesson-btn {
+    background: #f0f7ff;
+    color: #0b3b5c;
+    border: 2px solid #809ab3;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.skip-lesson-btn::before {
+    content: '⏸️';
+    font-size: 1rem;
+}
+.skip-lesson-btn:hover {
+    background: #e6f0fa;
+    border-color: #0b3b5c;
+}
+
+/* --- Панель действий --- */
+.controls {
+    display: flex;
+    justify-content: center;
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8fcff;
+    border: 2px solid #d0e0f0;
+    border-radius: 6px;
+}
+.action-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #d0e0f0;
+}
+.action-buttons .btn {
+    min-width: 180px;
+}
+.class-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}

@@ -1,0 +1,492 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .edit-wrapper {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+    
+    .edit-card {
+        background: white;
+        border-radius: 32px;
+        box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+    
+    .edit-header {
+        background: linear-gradient(135deg, #0a2f44 0%, #166a8f 100%);
+        padding: 35px;
+        color: white;
+        text-align: center;
+    }
+    
+    .edit-header h1 {
+        font-size: 1.8rem;
+        margin: 0 0 8px;
+        font-weight: 700;
+    }
+    
+    .edit-header p {
+        opacity: 0.85;
+        margin: 0;
+    }
+    
+    .edit-body {
+        padding: 35px;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+    }
+    
+    .form-section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #0a2f44;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #eef2f6;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        color: #1f3e53;
+        margin-bottom: 8px;
+        display: block;
+        font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e2edf7;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        background: #fefefe;
+        box-sizing: border-box;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: #166a8f;
+        box-shadow: 0 0 0 3px rgba(22, 106, 143, 0.1);
+        outline: none;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .help-text {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 5px;
+    }
+    
+    .password-requirements {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-top: 10px;
+        font-size: 0.75rem;
+    }
+    
+    .password-requirements ul {
+        margin: 5px 0 0 20px;
+        color: #64748b;
+    }
+    
+    .errorlist {
+        color: #dc2626;
+        font-size: 0.8rem;
+        margin-top: 5px;
+        list-style: none;
+        padding-left: 0;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #0a2f44 0%, #166a8f 100%);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 40px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(10, 47, 68, 0.3);
+    }
+    
+    .btn-cancel {
+        background: #f0f4fa;
+        color: #2a5779;
+        width: 100%;
+        display: block;
+        text-align: center;
+        padding: 12px;
+        border-radius: 40px;
+        text-decoration: none;
+        font-weight: 500;
+        margin-top: 15px;
+        transition: all 0.2s;
+    }
+    
+    .btn-cancel:hover {
+        background: #e3ecf5;
+    }
+    
+    .success-message {
+        background: #10b981;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    /* Select2 стили */
+    .select2-container .select2-selection--single {
+        height: 50px !important;
+        padding: 8px !important;
+        border: 2px solid #e2edf7 !important;
+        border-radius: 12px !important;
+        background: #fefefe !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 46px !important;
+    }
+    .select2-dropdown {
+        border: 2px solid #e2edf7 !important;
+        border-radius: 12px !important;
+    }
+    .select2-search__field {
+        padding: 10px 12px !important;
+        border: 2px solid #e2edf7 !important;
+        border-radius: 8px !important;
+    }
+    .select2-results__option--highlighted {
+        background: #0a2f44 !important;
+    }
+    
+    @media (max-width: 640px) {
+        .edit-body {
+            padding: 25px 20px;
+        }
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+        .edit-header h1 {
+            font-size: 1.4rem;
+        }
+        .edit-header {
+            padding: 25px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-wrapper">
+    <div class="edit-card">
+        <div class="edit-header">
+            <h1>⚙️ Настройки аккаунта</h1>
+            <p>Управляйте личными данными и безопасностью</p>
+        </div>
+        <div class="edit-body">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="success-message">✓ {{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="post" id="profileForm">
+                {% csrf_token %}
+                
+                <!-- Личная информация -->
+                <div class="form-section">
+                    <div class="form-section-title"><span>👤</span> Личная информация</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Имя</label>
+                            {{ form.first_name }}
+                            {{ form.first_name.errors }}
+                        </div>
+                        <div class="form-group">
+                            <label>Фамилия</label>
+                            {{ form.last_name }}
+                            {{ form.last_name.errors }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Электронная почта</label>
+                        {{ form.email }}
+                        {{ form.email.errors }}
+                        <div class="help-text">На эту почту будут приходить уведомления</div>
+                    </div>
+                </div>
+                
+                <!-- Место работы -->
+                <div class="form-section">
+                    <div class="form-section-title"><span>🏫</span> Место работы</div>
+                    
+                    <div class="form-group">
+                        <label>Регион (область/край/республика)</label>
+                        <select name="region" id="id_region_edit" class="region-select">
+                            <option value="">Выберите регион...</option>
+                            {% for region in regions %}
+                                <option value="{{ region.id }}" {% if current_region and current_region.id == region.id %}selected{% endif %}>
+                                    {{ region.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Город / Населенный пункт</label>
+                        <select name="city" id="id_city_edit" class="city-select">
+                            <option value="">Сначала выберите регион...</option>
+                            {% for city in cities %}
+                                <option value="{{ city.id }}" {% if current_city and current_city.id == city.id %}selected{% endif %}>
+                                    {{ city.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Школа</label>
+                            <select name="school" id="id_school_edit" class="school-select">
+                                <option value="">Сначала выберите город...</option>
+                                {% for school in schools %}
+                                    <option value="{{ school.id }}" {% if current_school and current_school.id == school.id %}selected{% endif %}>
+                                        {{ school.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Должность</label>
+                            <input type="text" name="position" id="id_position" value="{{ user.profile.position|default:'' }}" placeholder="Учитель математики">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Смена пароля -->
+                <div class="form-section">
+                    <div class="form-section-title"><span>🔒</span> Смена пароля</div>
+                    <div class="form-group">
+                        <label>Текущий пароль</label>
+                        <input type="password" name="old_password" id="old_password" autocomplete="current-password" placeholder="Введите текущий пароль">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Новый пароль</label>
+                            <input type="password" name="new_password1" id="new_password1" autocomplete="new-password" placeholder="Введите новый пароль">
+                        </div>
+                        <div class="form-group">
+                            <label>Подтверждение пароля</label>
+                            <input type="password" name="new_password2" id="new_password2" autocomplete="new-password" placeholder="Повторите новый пароль">
+                        </div>
+                    </div>
+                    <div class="password-requirements">
+                        <strong>🔐 Требования к паролю:</strong>
+                        <ul>
+                            <li>Минимум 8 символов</li>
+                            <li>Хотя бы одна заглавная буква (A-Z)</li>
+                            <li>Хотя бы одна строчная буква (a-z)</li>
+                            <li>Хотя бы одна цифра (0-9)</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                {% if password_error %}
+                    <div class="errorlist">{{ password_error }}</div>
+                {% endif %}
+                
+                <button type="submit" class="btn-save">💾 Сохранить изменения</button>
+                <a href="{% url 'schedule_app:profile' %}" class="btn-cancel">← Вернуться в профиль</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Инициализация Select2 для региона
+        $('#id_region_edit').select2({
+            placeholder: 'Поиск региона...',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Инициализация Select2 для города
+        var citySelect = $('#id_city_edit');
+        citySelect.select2({
+            placeholder: 'Поиск города...',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Инициализация Select2 для школы
+        var schoolSelect = $('#id_school_edit');
+        schoolSelect.select2({
+            placeholder: 'Поиск школы...',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Динамическая загрузка городов при выборе региона
+        $('#id_region_edit').on('change', function() {
+            var regionId = $(this).val();
+            var citySelect = $('#id_city_edit');
+            var schoolSelect = $('#id_school_edit');
+            
+            // Очищаем текущий выбор
+            citySelect.val(null).trigger('change');
+            schoolSelect.val(null).trigger('change');
+            schoolSelect.empty();
+            schoolSelect.append('<option value="">Сначала выберите город...</option>');
+            
+            if (regionId) {
+                citySelect.prop('disabled', false);
+                citySelect.empty();
+                citySelect.append('<option value="">Загрузка...</option>');
+                
+                $.ajax({
+                    url: '/api/cities/',
+                    data: { region_id: regionId },
+                    dataType: 'json',
+                    success: function(data) {
+                        citySelect.empty();
+                        citySelect.append('<option value="">Выберите город...</option>');
+                        if (data.cities && data.cities.length > 0) {
+                            $.each(data.cities, function(index, city) {
+                                citySelect.append('<option value="' + city.id + '">' + city.name + '</option>');
+                            });
+                            citySelect.prop('disabled', false);
+                        } else {
+                            citySelect.append('<option value="">Нет городов</option>');
+                            citySelect.prop('disabled', true);
+                        }
+                    },
+                    error: function() {
+                        citySelect.empty();
+                        citySelect.append('<option value="">Ошибка загрузки</option>');
+                        citySelect.prop('disabled', true);
+                    }
+                });
+            } else {
+                citySelect.empty();
+                citySelect.append('<option value="">Сначала выберите регион...</option>');
+                citySelect.prop('disabled', true);
+            }
+        });
+        
+        // Динамическая загрузка школ при выборе города
+        $('#id_city_edit').on('change', function() {
+            var cityId = $(this).val();
+            var schoolSelect = $('#id_school_edit');
+            
+            schoolSelect.val(null).trigger('change');
+            
+            if (cityId) {
+                schoolSelect.prop('disabled', false);
+                schoolSelect.empty();
+                schoolSelect.append('<option value="">Загрузка...</option>');
+                
+                $.ajax({
+                    url: '/api/schools/',
+                    data: { city_id: cityId },
+                    dataType: 'json',
+                    success: function(data) {
+                        schoolSelect.empty();
+                        schoolSelect.append('<option value="">Выберите школу...</option>');
+                        if (data.schools && data.schools.length > 0) {
+                            $.each(data.schools, function(index, school) {
+                                schoolSelect.append('<option value="' + school.id + '">' + school.name + '</option>');
+                            });
+                            schoolSelect.prop('disabled', false);
+                        } else {
+                            schoolSelect.append('<option value="">Нет школ</option>');
+                            schoolSelect.prop('disabled', true);
+                        }
+                    },
+                    error: function() {
+                        schoolSelect.empty();
+                        schoolSelect.append('<option value="">Ошибка загрузки</option>');
+                        schoolSelect.prop('disabled', true);
+                    }
+                });
+            } else {
+                schoolSelect.empty();
+                schoolSelect.append('<option value="">Сначала выберите город...</option>');
+                schoolSelect.prop('disabled', true);
+            }
+        });
+    });
+    
+    // Валидация перед отправкой
+    document.getElementById('profileForm')?.addEventListener('submit', function(e) {
+        const newPass = document.getElementById('new_password1')?.value;
+        const confirmPass = document.getElementById('new_password2')?.value;
+        
+        if (newPass || confirmPass) {
+            if (newPass !== confirmPass) {
+                e.preventDefault();
+                alert('❌ Пароли не совпадают');
+                return;
+            }
+            if (newPass.length < 8) {
+                e.preventDefault();
+                alert('❌ Пароль должен содержать минимум 8 символов');
+                return;
+            }
+            if (!/[A-Z]/.test(newPass)) {
+                e.preventDefault();
+                alert('❌ Пароль должен содержать хотя бы одну заглавную букву (A-Z)');
+                return;
+            }
+            if (!/[a-z]/.test(newPass)) {
+                e.preventDefault();
+                alert('❌ Пароль должен содержать хотя бы одну строчную букву (a-z)');
+                return;
+            }
+            if (!/\d/.test(newPass)) {
+                e.preventDefault();
+                alert('❌ Пароль должен содержать хотя бы одну цифру (0-9)');
+                return;
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ошибка сервера - 500{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-container {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+    }
+    
+    .error-card {
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 24px;
+        padding: 50px 40px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .error-code {
+        font-size: 8rem;
+        font-weight: 800;
+        color: #dc2626;
+        line-height: 1;
+        margin-bottom: 20px;
+        text-shadow: 4px 4px 0 rgba(220, 38, 38, 0.1);
+    }
+    
+    .error-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+    }
+    
+    .error-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 15px;
+    }
+    
+    .error-message {
+        color: #64748b;
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 30px;
+    }
+    
+    .error-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn-error-primary {
+        background: #dc2626;
+        color: white;
+        padding: 12px 28px;
+        border-radius: 40px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-error-primary:hover {
+        background: #b91c1c;
+        transform: translateY(-2px);
+    }
+    
+    .btn-error-secondary {
+        background: #f1f5f9;
+        color: #0a2f44;
+        padding: 12px 28px;
+        border-radius: 40px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .btn-error-secondary:hover {
+        background: #e2e8f0;
+        transform: translateY(-2px);
+    }
+    
+    @media (max-width: 560px) {
+        .error-card {
+            padding: 35px 25px;
+        }
+        .error-code {
+            font-size: 5rem;
+        }
+        .error-title {
+            font-size: 1.4rem;
+        }
+        .error-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-card">
+        <div class="error-icon">⚙️</div>
+        <div class="error-code">500</div>
+        <h1 class="error-title">Ошибка сервера</h1>
+        <p class="error-message">
+            Что-то пошло не так на нашей стороне.<br>
+            Мы уже работаем над устранением проблемы. Попробуйте позже.
+        </p>
+        <div class="error-actions">
+            <a href="{% url 'schedule_app:index' %}" class="btn-error-primary">
+                🏠 На главную
+            </a>
+            <a href="javascript:history.back()" class="btn-error-secondary">
+                ◀ Вернуться назад
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

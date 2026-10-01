@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Вход / Регистрация{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .select2-container .select2-selection--single {
+        height: 50px !important;
+        padding: 8px !important;
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        background: white !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 46px !important;
+    }
+    .select2-dropdown {
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+    }
+    .select2-search__field {
+        padding: 10px 12px !important;
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        font-size: 0.95rem !important;
+    }
+    .select2-results__option {
+        padding: 10px 14px !important;
+        font-size: 0.9rem !important;
+    }
+    .select2-results__option--highlighted {
+        background: #0a2f44 !important;
+    }
+    .form-section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #0a2f44;
+        margin: 25px 0 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .form-section-title:first-of-type {
+        margin-top: 0;
+    }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #94a3b8 !important;
+    }
+    .select2-container--default .select2-selection--single {
+        border-color: #e2e8f0 !important;
+    }
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #0a2f44 !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #1e293b !important;
+        line-height: 30px !important;
+        padding-left: 0 !important;
+    }
+    .help-text {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 5px;
+    }
+    .school-status {
+        font-size: 0.8rem;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-top: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #1e293b;
+    }
+    .school-status.free {
+        background: #d1fae5;
+        border-color: #10b981;
+        color: #065f46;
+    }
+    .school-status.taken {
+        background: #fee2e2;
+        border-color: #ef4444;
+        color: #991b1b;
+    }
+    @media (max-width: 560px) {
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <button class="tab-btn active" data-tab="login">Вход</button>
+            <button class="tab-btn" data-tab="register">Регистрация</button>
+        </div>
+        <div class="tab-content">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message {{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Форма входа -->
+            <div id="login-form" class="auth-form active">
+                <form method="post" action="{% url 'schedule_app:auth' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="login">
+                    {% for field in login_form %}
+                        <div class="form-group {% if field.errors %}error{% endif %}">
+                            <label>{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn-auth">Войти</button>
+                </form>
+            </div>
+
+            <!-- Форма регистрации -->
+            <div id="register-form" class="auth-form">
+                <form method="post" action="{% url 'schedule_app:auth' %}" id="registerForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="register">
+                    
+                    <!-- Основная информация -->
+                    <div class="form-section-title"><span>👤</span> Основная информация</div>
+                    
+                    <div class="form-group">
+                        <label>Имя пользователя</label>
+                        {{ register_form.username }}
+                        {% if register_form.username.errors %}
+                            <ul class="errorlist">{% for error in register_form.username.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>ФИО</label>
+                        {{ register_form.full_name }}
+                        {% if register_form.full_name.errors %}
+                            <ul class="errorlist">{% for error in register_form.full_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Электронная почта</label>
+                        {{ register_form.email }}
+                        {% if register_form.email.errors %}
+                            <ul class="errorlist">{% for error in register_form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <!-- Место работы -->
+                    <div class="form-section-title"><span>🏫</span> Место работы</div>
+                    
+                    <div class="form-group">
+                        <label>Регион (область/край/республика)</label>
+                        {{ register_form.region }}
+                        {% if register_form.region.errors %}
+                            <ul class="errorlist">{% for error in register_form.region.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Город / Населенный пункт</label>
+                        {{ register_form.city }}
+                        {% if register_form.city.errors %}
+                            <ul class="errorlist">{% for error in register_form.city.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Школа</label>
+                            {{ register_form.school }}
+                            <div class="help-text" id="schoolHelpText">
+                                💡 Выберите школу. Если она свободна, вы станете её главным учителем.
+                                Если школа уже занята, вы не сможете её выбрать.
+                            </div>
+                            <div id="schoolStatus" class="school-status" style="display: none;"></div>
+                            {% if register_form.school.errors %}
+                                <ul class="errorlist">{% for error in register_form.school.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label>Должность</label>
+                            {{ register_form.position }}
+                            {% if register_form.position.errors %}
+                                <ul class="errorlist">{% for error in register_form.position.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Пароль -->
+                    <div class="form-section-title"><span>🔒</span> Безопасность</div>
+
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <div class="password-wrapper">
+                            {{ register_form.password1 }}
+                            <button type="button" class="toggle-password" data-target="id_password1">👁️</button>
+                        </div>
+                        <div class="strength-meter"><div class="strength-fill" id="strengthFill"></div></div>
+                        <div class="strength-text" id="strengthText"></div>
+                        <div class="criteria-list" id="criteriaList">
+                            <div class="criteria-item invalid" data-criteria="length"><span class="criteria-icon">✗</span> Минимум 8 символов</div>
+                            <div class="criteria-item invalid" data-criteria="uppercase"><span class="criteria-icon">✗</span> Заглавная буква (A-Z)</div>
+                            <div class="criteria-item invalid" data-criteria="lowercase"><span class="criteria-icon">✗</span> Строчная буква (a-z)</div>
+                            <div class="criteria-item invalid" data-criteria="digit"><span class="criteria-icon">✗</span> Цифра (0-9)</div>
+                            <div class="criteria-item invalid" data-criteria="special"><span class="criteria-icon">✗</span> Спецсимвол (!@#$%^&*)</div>
+                        </div>
+                        {% if register_form.password1.errors %}
+                            <ul class="errorlist">{% for error in register_form.password1.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Подтверждение пароля</label>
+                        <div class="password-wrapper">
+                            {{ register_form.password2 }}
+                            <button type="button" class="toggle-password" data-target="id_password2">👁️</button>
+                        </div>
+                        <div class="match-hint invalid" id="matchHint">✗ Пароли не совпадают</div>
+                        {% if register_form.password2.errors %}
+                            <ul class="errorlist">{% for error in register_form.password2.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <!-- Капча -->
+                    <div class="form-group">
+                        <label>Капча</label>
+                        <div class="captcha"><div class="captcha-image">{{ register_form.captcha }}</div></div>
+                        {% if register_form.captcha.errors %}
+                            <ul class="errorlist">{% for error in register_form.captcha.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn-auth">Зарегистрироваться</button>
+                </form>
+                <hr>
+                <div class="switch-link">Уже есть аккаунт? <a href="#" data-tab-link="login">Войдите</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // ========== ПЕРЕКЛЮЧЕНИЕ ТАБОВ ==========
+    const tabs = document.querySelectorAll('.tab-btn');
+    const forms = { login: document.getElementById('login-form'), register: document.getElementById('register-form') };
+
+    function activateTab(tabId) {
+        tabs.forEach(btn => btn.dataset.tab === tabId ? btn.classList.add('active') : btn.classList.remove('active'));
+        Object.keys(forms).forEach(id => id === tabId ? forms[id].classList.add('active') : forms[id].classList.remove('active'));
+        window.location.hash = tabId;
+    }
+
+    tabs.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.tab)));
+    document.querySelectorAll('[data-tab-link]').forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); activateTab(link.dataset.tabLink); }));
+
+    if (window.location.hash === '#register') activateTab('register');
+    else if (window.location.hash === '#login') activateTab('login');
+    else activateTab('login');
+
+    document.querySelectorAll('.captcha-image img').forEach(img => img.addEventListener('click', function() { this.src = this.src.split('?')[0] + '?' + new Date().getTime(); }));
+
+    // ========== SELECT2 ДЛЯ РЕГИОНОВ, ГОРОДОВ И ШКОЛ ==========
+    $(document).ready(function() {
+        $('#id_region').select2({
+            placeholder: 'Поиск региона...',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        $('#id_city').select2({
+            placeholder: 'Сначала выберите регион...',
+            allowClear: true,
+            width: '100%',
+            disabled: true
+        });
+        
+        $('#id_school').select2({
+            placeholder: 'Сначала выберите город...',
+            allowClear: true,
+            width: '100%',
+            disabled: true
+        });
+        
+        // Динамическая загрузка городов
+        $('#id_region').on('change', function() {
+            var regionId = $(this).val();
+            var citySelect = $('#id_city');
+            var schoolSelect = $('#id_school');
+            
+            citySelect.val(null).trigger('change');
+            schoolSelect.val(null).trigger('change');
+            schoolSelect.empty();
+            schoolSelect.append('<option value="">Сначала выберите город...</option>');
+            schoolSelect.prop('disabled', true);
+            document.getElementById('schoolStatus').style.display = 'none';
+            
+            if (regionId) {
+                citySelect.prop('disabled', false);
+                citySelect.empty();
+                citySelect.append('<option value="">Загрузка...</option>');
+                
+                $.ajax({
+                    url: '/api/cities/',
+                    data: { region_id: regionId },
+                    dataType: 'json',
+                    success: function(data) {
+                        citySelect.empty();
+                        citySelect.append('<option value="">Выберите город...</option>');
+                        if (data.cities && data.cities.length > 0) {
+                            $.each(data.cities, function(index, city) {
+                                citySelect.append('<option value="' + city.id + '">' + city.name + '</option>');
+                            });
+                            citySelect.prop('disabled', false);
+                        } else {
+                            citySelect.append('<option value="">Нет городов</option>');
+                            citySelect.prop('disabled', true);
+                        }
+                    },
+                    error: function() {
+                        citySelect.empty();
+                        citySelect.append('<option value="">Ошибка загрузки</option>');
+                        citySelect.prop('disabled', true);
+                    }
+                });
+            } else {
+                citySelect.empty();
+                citySelect.append('<option value="">Сначала выберите регион...</option>');
+                citySelect.prop('disabled', true);
+            }
+        });
+        
+        // Динамическая загрузка школ с информацией о статусе
+        $('#id_city').on('change', function() {
+            var cityId = $(this).val();
+            var schoolSelect = $('#id_school');
+            var schoolStatus = document.getElementById('schoolStatus');
+            
+            schoolSelect.val(null).trigger('change');
+            schoolStatus.style.display = 'none';
+            
+            if (cityId) {
+                schoolSelect.prop('disabled', false);
+                schoolSelect.empty();
+                schoolSelect.append('<option value="">Загрузка...</option>');
+                
+                $.ajax({
+                    url: '/api/schools/',
+                    data: { city_id: cityId },
+                    dataType: 'json',
+                    success: function(data) {
+                        schoolSelect.empty();
+                        schoolSelect.append('<option value="">Выберите школу...</option>');
+                        if (data.schools && data.schools.length > 0) {
+                            $.each(data.schools, function(index, school) {
+                                var label = school.name;
+                                if (school.main_teacher) {
+                                    label += ' (Занята: ' + school.main_teacher_name + ')';
+                                } else {
+                                    label += ' (Свободна)';
+                                }
+                                schoolSelect.append('<option value="' + school.id + '">' + label + '</option>');
+                            });
+                            schoolSelect.prop('disabled', false);
+                        } else {
+                            schoolSelect.append('<option value="">Нет школ</option>');
+                            schoolSelect.prop('disabled', true);
+                        }
+                    },
+                    error: function() {
+                        schoolSelect.empty();
+                        schoolSelect.append('<option value="">Ошибка загрузки</option>');
+                        schoolSelect.prop('disabled', true);
+                    }
+                });
+            } else {
+                schoolSelect.empty();
+                schoolSelect.append('<option value="">Сначала выберите город...</option>');
+                schoolSelect.prop('disabled', true);
+            }
+        });
+        
+        // Показ статуса школы при выборе
+        $('#id_school').on('change', function() {
+            var schoolId = $(this).val();
+            var schoolStatus = document.getElementById('schoolStatus');
+            var helpText = document.getElementById('schoolHelpText');
+            
+            if (schoolId) {
+                var selectedOption = $(this).find('option:selected');
+                var label = selectedOption.text();
+                
+                if (label.includes('(Свободна)')) {
+                    schoolStatus.className = 'school-status free';
+                    schoolStatus.innerHTML = '✅ Школа свободна! Вы станете её главным учителем.';
+                    schoolStatus.style.display = 'block';
+                } else if (label.includes('(Занята:')) {
+                    schoolStatus.className = 'school-status taken';
+                    schoolStatus.innerHTML = '❌ Школа уже занята. Вы не сможете её выбрать.';
+                    schoolStatus.style.display = 'block';
+                } else {
+                    schoolStatus.style.display = 'none';
+                }
+            } else {
+                schoolStatus.style.display = 'none';
+            }
+        });
+    });
+
+    // ========== ВАЛИДАЦИЯ ПАРОЛЯ ==========
+    const passwordInput = document.getElementById('id_password1');
+    const confirmInput = document.getElementById('id_password2');
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+    const matchHint = document.getElementById('matchHint');
+
+    const criteria = {
+        length: (pwd) => pwd.length >= 8,
+        uppercase: (pwd) => /[A-Z]/.test(pwd),
+        lowercase: (pwd) => /[a-z]/.test(pwd),
+        digit: (pwd) => /\d/.test(pwd),
+        special: (pwd) => /[!@#$%^&*(),.?":{}|<>]/.test(pwd)
+    };
+
+    function updateCriteria(pwd) {
+        for (const [key, check] of Object.entries(criteria)) {
+            const isValid = check(pwd);
+            const item = document.querySelector(`.criteria-item[data-criteria="${key}"]`);
+            if (item) {
+                if (isValid) {
+                    item.classList.remove('invalid'); item.classList.add('valid');
+                    item.querySelector('.criteria-icon').textContent = '✓';
+                } else {
+                    item.classList.remove('valid'); item.classList.add('invalid');
+                    item.querySelector('.criteria-icon').textContent = '✗';
+                }
+            }
+        }
+    }
+
+    function calculateStrength(pwd) {
+        if (!pwd) return 0;
+        let score = 0;
+        for (const check of Object.values(criteria)) if (check(pwd)) score++;
+        return score;
+    }
+
+    function updateStrengthMeter(pwd) {
+        const score = calculateStrength(pwd);
+        const percent = (score / 5) * 100;
+        strengthFill.style.width = percent + '%';
+        if (pwd.length === 0) { strengthFill.className = 'strength-fill'; strengthText.textContent = ''; return; }
+        if (score <= 2) { strengthFill.className = 'strength-fill weak'; strengthText.textContent = 'Слабый пароль'; }
+        else if (score === 3) { strengthFill.className = 'strength-fill medium'; strengthText.textContent = 'Средний пароль'; }
+        else if (score === 4) { strengthFill.className = 'strength-fill good'; strengthText.textContent = 'Хороший пароль'; }
+        else { strengthFill.className = 'strength-fill strong'; strengthText.textContent = 'Надёжный пароль'; }
+    }
+
+    function checkPasswordMatch() {
+        const password = passwordInput?.value || '';
+        const confirm = confirmInput?.value || '';
+        if (confirm.length === 0) { matchHint.style.display = 'none'; return; }
+        matchHint.style.display = 'block';
+        if (password === confirm && password.length > 0) {
+            matchHint.classList.remove('invalid'); matchHint.classList.add('valid');
+            matchHint.innerHTML = '✓ Пароли совпадают';
+        } else {
+            matchHint.classList.remove('valid'); matchHint.classList.add('invalid');
+            matchHint.innerHTML = '✗ Пароли не совпадают';
+        }
+    }
+
+    function onPasswordInput() { const pwd = passwordInput?.value || ''; updateCriteria(pwd); updateStrengthMeter(pwd); checkPasswordMatch(); }
+    if (passwordInput) passwordInput.addEventListener('input', onPasswordInput);
+    if (confirmInput) confirmInput.addEventListener('input', checkPasswordMatch);
+    onPasswordInput();
+
+    document.querySelectorAll('.toggle-password').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetId = this.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input) {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                input.setAttribute('type', type);
+                this.textContent = type === 'password' ? '👁️' : '🙈';
+            }
+        });
+    });
+
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+            const password = passwordInput?.value || '';
+            const confirm = confirmInput?.value || '';
+            if (password !== confirm) { e.preventDefault(); alert('Пароли не совпадают'); return false; }
+            if (password && calculateStrength(password) < 3) { e.preventDefault(); alert('Пожалуйста, используйте более надёжный пароль'); return false; }
+        });
+    }
+</script>
+{% endblock %}

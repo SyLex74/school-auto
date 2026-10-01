@@ -1,0 +1,696 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Подтверждение email{% endblock %}
+
+{% block extra_css %}
+<style>
+    .verify-container {
+        max-width: 500px;
+        margin: 60px auto;
+        padding: 0 20px;
+    }
+    
+    .verify-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .verify-header {
+        background: #0a2f44;
+        padding: 35px 30px;
+        text-align: center;
+        color: white;
+    }
+    
+    .verify-header h1 {
+        margin: 0 0 10px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+    }
+    
+    .verify-header p {
+        opacity: 0.9;
+        margin: 0;
+        font-size: 1rem;
+        color: #e0e7ff;
+    }
+    
+    .verify-body {
+        padding: 35px;
+        background: white;
+    }
+    
+    .email-display {
+        background: #f1f5f9;
+        padding: 12px 16px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 25px;
+        font-weight: 500;
+        color: #1e293b;
+        word-break: break-all;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .email-display strong {
+        color: #0a2f44;
+    }
+    
+    .code-input-container {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+    
+    .code-input-wrapper {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: nowrap;
+    }
+    
+    .code-digit {
+        width: 55px;
+        height: 65px;
+        text-align: center;
+        font-size: 1.8rem;
+        font-weight: 600;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        background: white;
+        transition: all 0.2s;
+        color: #1e293b;
+    }
+    
+    .code-digit:focus {
+        border-color: #0a2f44;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(10, 47, 68, 0.1);
+    }
+    
+    /* Анимация прыжка */
+    @keyframes jump {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-12px); }
+        100% { transform: translateY(0); }
+    }
+    
+    .code-digit.jump {
+        animation: jump 0.3s ease-in-out;
+    }
+    
+    /* Анимация тряски для контейнера */
+    @keyframes shakeContainer {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-8px); }
+        50% { transform: translateX(8px); }
+        75% { transform: translateX(-4px); }
+        100% { transform: translateX(0); }
+    }
+    
+    .code-input-wrapper.shake {
+        animation: shakeContainer 0.4s ease-in-out;
+    }
+    
+    /* Анимация тряски для ячейки */
+    @keyframes shakeCell {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        50% { transform: translateX(5px); }
+        75% { transform: translateX(-3px); }
+        100% { transform: translateX(0); }
+    }
+    
+    .code-digit.shake {
+        animation: shakeCell 0.4s ease-in-out;
+    }
+    
+    /* Зелёная подсветка */
+    .code-digit.correct {
+        border-color: #10b981 !important;
+        background-color: #d1fae5 !important;
+        color: #065f46 !important;
+    }
+    
+    /* Красная подсветка */
+    .code-digit.error-highlight {
+        border-color: #dc2626 !important;
+        background-color: #fee2e2 !important;
+        color: #991b1b !important;
+    }
+    
+    .btn-verify {
+        width: 100%;
+        padding: 14px;
+        background: #0a2f44;
+        color: white;
+        border: none;
+        border-radius: 40px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-verify:hover {
+        background: #166a8f;
+        transform: translateY(-2px);
+    }
+    
+    .timer-container {
+        text-align: center;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .timer-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+    
+    .timer {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #0a2f44;
+        font-family: monospace;
+    }
+    
+    .resend-btn {
+        background: none;
+        border: none;
+        color: #0a2f44;
+        cursor: pointer;
+        font-weight: 500;
+        margin-top: 12px;
+        padding: 8px 16px;
+        border-radius: 30px;
+        transition: all 0.2s;
+    }
+    
+    .resend-btn:hover:not(:disabled) {
+        background: #f1f5f9;
+    }
+    
+    .resend-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .help-text {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-align: center;
+        margin-top: 20px;
+    }
+    
+    .message-success, .message-error, .message-info {
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .message-success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left: 4px solid #10b981;
+    }
+    
+    .message-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .message-info {
+        background: #e0f2fe;
+        color: #0369a1;
+        border-left: 4px solid #0ea5e9;
+    }
+    
+    .error-message {
+        color: #dc2626;
+        font-size: 0.85rem;
+        margin-top: 10px;
+        text-align: center;
+        padding: 8px;
+        background: #fee2e2;
+        border-radius: 8px;
+    }
+    
+    @media (max-width: 560px) {
+        .verify-body {
+            padding: 25px;
+        }
+        .code-digit {
+            width: 45px;
+            height: 55px;
+            font-size: 1.5rem;
+        }
+        .code-input-wrapper {
+            gap: 8px;
+        }
+        .verify-header h1 {
+            font-size: 1.4rem;
+        }
+    }
+    
+    @media (max-width: 400px) {
+        .code-digit {
+            width: 40px;
+            height: 50px;
+            font-size: 1.3rem;
+        }
+        .code-input-wrapper {
+            gap: 6px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="verify-container">
+    <div class="verify-card">
+        <div class="verify-header">
+            <h1>📧 Подтверждение email</h1>
+            <p>Введите код из письма</p>
+        </div>
+        <div class="verify-body">
+            <div class="email-display">
+                📩 Код отправлен на: <strong>{{ email }}</strong>
+            </div>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'success' %}
+                        <div class="message-success">{{ message }}</div>
+                    {% elif message.tags == 'error' %}
+                        <div class="message-error">{{ message }}</div>
+                    {% else %}
+                        <div class="message-info">{{ message }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            
+            <div id="clientError" class="error-message" style="display: none;"></div>
+            
+            <form method="post" id="verifyForm">
+                {% csrf_token %}
+                <div class="code-input-container">
+                    <div class="code-input-wrapper" id="codeInputsWrapper">
+                        <input type="text" maxlength="1" class="code-digit" id="digit1" autofocus>
+                        <input type="text" maxlength="1" class="code-digit" id="digit2">
+                        <input type="text" maxlength="1" class="code-digit" id="digit3">
+                        <input type="text" maxlength="1" class="code-digit" id="digit4">
+                        <input type="text" maxlength="1" class="code-digit" id="digit5">
+                        <input type="text" maxlength="1" class="code-digit" id="digit6">
+                    </div>
+                    <input type="hidden" name="code" id="fullCode" value="">
+                </div>
+                <button type="button" class="btn-verify" id="submitBtn">✅ Подтвердить</button>
+            </form>
+            
+            <div class="timer-container">
+                <div class="timer-label">⏱️ Код действителен</div>
+                <div class="timer" id="timer" data-seconds="{{ expires_in|default:600 }}">--:--</div>
+                <button id="resendBtn" class="resend-btn" disabled>🔄 Отправить код повторно</button>
+            </div>
+            
+            <div class="help-text">
+                💡 Не пришло письмо? Проверьте папку "Спам" или нажмите "Отправить повторно"
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // Элементы
+        const timerElement = document.getElementById('timer');
+        const resendButton = document.getElementById('resendBtn');
+        const verifyForm = document.getElementById('verifyForm');
+        const fullCodeInput = document.getElementById('fullCode');
+        const submitBtn = document.getElementById('submitBtn');
+        const wrapper = document.getElementById('codeInputsWrapper');
+        const clientError = document.getElementById('clientError');
+        
+        const digitInputs = [
+            document.getElementById('digit1'),
+            document.getElementById('digit2'),
+            document.getElementById('digit3'),
+            document.getElementById('digit4'),
+            document.getElementById('digit5'),
+            document.getElementById('digit6')
+        ];
+        
+        // ПРАВИЛЬНЫЙ КОД из Django
+        const CORRECT_CODE = '{{ expected_code|default:"" }}';
+        
+        console.log('Expected code:', CORRECT_CODE); // Для отладки
+        
+        let remainingSeconds = 0;
+        let timerInterval = null;
+        
+        // Таймер
+        if (timerElement) {
+            remainingSeconds = parseInt(timerElement.dataset.seconds) || 600;
+        }
+        
+        function formatTime(seconds) {
+            var mins = Math.floor(seconds / 60);
+            var secs = seconds % 60;
+            return (mins < 10 ? '0' + mins : mins) + ':' + (secs < 10 ? '0' + secs : secs);
+        }
+        
+        function updateTimer() {
+            if (remainingSeconds <= 0) {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                if (timerElement) {
+                    timerElement.textContent = '00:00';
+                    timerElement.style.color = '#dc2626';
+                }
+                if (resendButton) {
+                    resendButton.disabled = false;
+                    resendButton.textContent = '🔄 Отправить код повторно';
+                }
+            } else {
+                if (timerElement) {
+                    timerElement.textContent = formatTime(remainingSeconds);
+                }
+                remainingSeconds--;
+            }
+        }
+        
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            if (timerElement) {
+                remainingSeconds = parseInt(timerElement.dataset.seconds) || 600;
+                timerElement.style.color = '#0a2f44';
+            }
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+        
+        if (timerElement && remainingSeconds > 0) {
+            startTimer();
+        } else if (timerElement) {
+            timerElement.textContent = '00:00';
+            timerElement.style.color = '#dc2626';
+            if (resendButton) {
+                resendButton.disabled = false;
+            }
+        }
+        
+        // Обновление скрытого поля
+        function updateFullCode() {
+            var code = '';
+            for (var i = 0; i < digitInputs.length; i++) {
+                if (digitInputs[i]) {
+                    code += digitInputs[i].value;
+                }
+            }
+            if (fullCodeInput) {
+                fullCodeInput.value = code;
+            }
+            return code;
+        }
+        
+        // Очистка подсветки
+        function clearHighlights() {
+            for (var i = 0; i < digitInputs.length; i++) {
+                var input = digitInputs[i];
+                if (input) {
+                    input.classList.remove('correct', 'error-highlight', 'jump', 'shake');
+                }
+            }
+            if (wrapper) {
+                wrapper.classList.remove('shake');
+            }
+        }
+        
+        // Скрыть сообщение об ошибке
+        function hideError() {
+            if (clientError) {
+                clientError.style.display = 'none';
+                clientError.innerHTML = '';
+            }
+        }
+        
+        // Показать сообщение об ошибке
+        function showError(message) {
+            if (clientError) {
+                clientError.style.display = 'block';
+                clientError.innerHTML = message;
+            }
+        }
+        
+        // Анимация успеха (прыжок + зелёный)
+        function playSuccessAnimation() {
+            clearHighlights();
+            hideError();
+            
+            // Подсветка зелёным и анимация прыжка для каждой ячейки
+            for (var i = 0; i < digitInputs.length; i++) {
+                var input = digitInputs[i];
+                if (input) {
+                    input.classList.add('correct');
+                    input.classList.add('jump');
+                    setTimeout(function(el) {
+                        return function() { 
+                            el.classList.remove('jump');
+                        };
+                    }(input), 300);
+                }
+            }
+            
+            // Отправляем форму после анимации
+            setTimeout(function() {
+                verifyForm.submit();
+            }, 400);
+        }
+        
+        // Анимация ошибки (тряска + красный)
+        function playErrorAnimation() {
+            clearHighlights();
+            
+            // Тряска контейнера
+            if (wrapper) {
+                wrapper.classList.add('shake');
+            }
+            
+            // Красная подсветка всех ячеек
+            for (var i = 0; i < digitInputs.length; i++) {
+                var input = digitInputs[i];
+                if (input) {
+                    input.classList.add('error-highlight');
+                    input.classList.add('shake');
+                }
+            }
+            
+            // Показываем сообщение об ошибке
+            showError('❌ Неверный код подтверждения. Попробуйте снова.');
+            
+            // Убираем подсветку через 1.5 секунды
+            setTimeout(function() {
+                if (wrapper) {
+                    wrapper.classList.remove('shake');
+                }
+                for (var i = 0; i < digitInputs.length; i++) {
+                    var input = digitInputs[i];
+                    if (input) {
+                        input.classList.remove('error-highlight', 'shake');
+                    }
+                }
+            }, 1500);
+            
+            // Скрываем сообщение через 2.5 секунды
+            setTimeout(function() {
+                hideError();
+            }, 2500);
+        }
+        
+        // Проверка кода
+        function verifyCode() {
+            var enteredCode = updateFullCode();
+            
+            if (enteredCode.length !== 6) {
+                showError('⚠️ Введите все 6 цифр кода');
+                setTimeout(function() {
+                    hideError();
+                }, 2000);
+                return false;
+            }
+            
+            if (CORRECT_CODE && enteredCode === CORRECT_CODE) {
+                playSuccessAnimation();
+                return true;
+            } else {
+                playErrorAnimation();
+                return false;
+            }
+        }
+        
+        // Обработка ввода цифры
+        function handleDigitInput(index, event) {
+            var input = digitInputs[index];
+            if (!input) return;
+            
+            clearHighlights();
+            hideError();
+            input.value = input.value.replace(/[^0-9]/g, '');
+            
+            var code = updateFullCode();
+            
+            // Переход к следующему полю
+            if (input.value.length === 1 && index < digitInputs.length - 1) {
+                digitInputs[index + 1].focus();
+            }
+            
+            // Если все поля заполнены — автоматическая проверка
+            if (code.length === 6) {
+                verifyCode();
+            }
+        }
+        
+        // Обработка Backspace
+        function handleKeyDown(index, event) {
+            if (event.key === 'Backspace') {
+                clearHighlights();
+                hideError();
+                if (digitInputs[index] && digitInputs[index].value === '') {
+                    if (index > 0) {
+                        digitInputs[index - 1].focus();
+                        digitInputs[index - 1].value = '';
+                        updateFullCode();
+                    }
+                }
+            }
+        }
+        
+        // Вставка из буфера
+        function handlePaste(event) {
+            event.preventDefault();
+            clearHighlights();
+            hideError();
+            
+            var pastedText = (event.clipboardData || window.clipboardData).getData('text');
+            var digits = pastedText.replace(/[^0-9]/g, '').split('').slice(0, 6);
+            
+            for (var i = 0; i < digits.length && i < digitInputs.length; i++) {
+                if (digitInputs[i]) {
+                    digitInputs[i].value = digits[i];
+                }
+            }
+            
+            updateFullCode();
+            
+            if (digits.length === 6) {
+                verifyCode();
+            } else if (digits.length > 0 && digits.length < 6) {
+                digitInputs[digits.length - 1].focus();
+            }
+        }
+        
+        // Назначение обработчиков
+        for (var i = 0; i < digitInputs.length; i++) {
+            var input = digitInputs[i];
+            if (input) {
+                input.addEventListener('input', (function(idx) {
+                    return function(e) { handleDigitInput(idx, e); };
+                })(i));
+                input.addEventListener('keydown', (function(idx) {
+                    return function(e) { handleKeyDown(idx, e); };
+                })(i));
+            }
+        }
+        
+        // Вставка из буфера
+        if (wrapper) {
+            wrapper.addEventListener('paste', handlePaste);
+        }
+        
+        // Кнопка подтверждения
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function() {
+                verifyCode();
+            });
+        }
+        
+        // CSRF токен
+        function getCsrfToken() {
+            var name = 'csrftoken';
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Повторная отправка кода
+        if (resendButton) {
+            resendButton.addEventListener('click', function() {
+                var btn = this;
+                btn.disabled = true;
+                btn.textContent = '⏳ Отправка...';
+                
+                fetch('{% url "schedule_app:resend_code" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(function(response) {
+                    return response.json().then(function(data) {
+                        return { status: response.status, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (result.status === 200) {
+                        alert('Новый код отправлен на вашу почту!');
+                        if (timerElement) {
+                            timerElement.dataset.seconds = '600';
+                        }
+                        startTimer();
+                        for (var i = 0; i < digitInputs.length; i++) {
+                            if (digitInputs[i]) digitInputs[i].value = '';
+                        }
+                        clearHighlights();
+                        hideError();
+                        updateFullCode();
+                        if (digitInputs[0]) digitInputs[0].focus();
+                    } else {
+                        alert(result.data.error || 'Ошибка при отправке кода');
+                        btn.disabled = false;
+                        btn.textContent = '🔄 Отправить код повторно';
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                    alert('Ошибка сети. Попробуйте позже.');
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Отправить код повторно';
+                });
+            });
+        }
+    })();
+</script>
+{% endblock %}

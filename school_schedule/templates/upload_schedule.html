@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Загрузка расписания{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/upload.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="upload-wrapper">
+    <div class="upload-card">
+        <div class="upload-header">
+            <h1>Загрузить готовое расписание</h1>
+            <p>Импорт из Excel .xlsx или .xls</p>
+        </div>
+        <div class="upload-body">
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-icon">📂</div>
+                <div class="drop-zone-title">Перетащите файл сюда или нажмите для выбора</div>
+                <div class="drop-zone-subtitle">Поддерживаются файлы .xlsx, .xls</div>
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+            </div>
+
+            <div id="selectedFileInfo" style="display: none;" class="selected-file">
+                <span>📎 Выбран файл:</span>
+                <span id="fileName"></span>
+                <button id="removeFileBtn" class="remove-file" title="Удалить файл">✖</button>
+            </div>
+
+            <button id="uploadBtn" class="btn-upload" disabled>Загрузить расписание</button>
+            <div id="messageArea"></div>
+
+            <div class="file-info">
+                <strong>Примечание:</strong> Файл должен быть экспортирован из нашего приложения (формат: день, классы, уроки).<br>
+                После загрузки расписание появится в вашем профиле.
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="{% url 'schedule_app:choice' %}" class="btn-back">← Назад к выбору режима</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const selectedFileInfo = document.getElementById('selectedFileInfo');
+    const fileNameSpan = document.getElementById('fileName');
+    const removeFileBtn = document.getElementById('removeFileBtn');
+    const messageArea = document.getElementById('messageArea');
+
+    let selectedFile = null;
+
+    function showMessage(text, type = 'error') {
+        messageArea.innerHTML = `<div class="message ${type}">${text}</div>`;
+        setTimeout(() => { if (messageArea.innerHTML.includes(text)) messageArea.innerHTML = ''; }, 5000);
+    }
+
+    function updateUI() {
+        if (selectedFile) {
+            fileNameSpan.textContent = selectedFile.name;
+            selectedFileInfo.style.display = 'inline-flex';
+            uploadBtn.disabled = false;
+        } else {
+            selectedFileInfo.style.display = 'none';
+            uploadBtn.disabled = true;
+        }
+    }
+
+    function clearFile() { selectedFile = null; fileInput.value = ''; updateUI(); }
+    function handleFile(file) {
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'xlsx' && ext !== 'xls') { showMessage('Неподдерживаемый формат файла. Выберите .xlsx или .xls', 'error'); return; }
+        selectedFile = file;
+        updateUI();
+    }
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+    removeFileBtn.addEventListener('click', (e) => { e.stopPropagation(); clearFile(); });
+
+    uploadBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+        const formData = new FormData();
+        formData.append('excel_file', selectedFile);
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Загрузка...';
+        try {
+            const response = await fetch("{% url 'schedule_app:process_upload' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok && result.status === 'ok') {
+                showMessage(result.message || 'Расписание успешно загружено!', 'success');
+                clearFile();
+                setTimeout(() => { window.location.href = "{% url 'schedule_app:profile' %}"; }, 1500);
+            } else {
+                showMessage(result.error || 'Ошибка при загрузке файла', 'error');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Загрузить расписание';
+            }
+        } catch (err) {
+            console.error(err);
+            showMessage('Ошибка сети. Попробуйте позже.', 'error');
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Загрузить расписание';
+        }
+    });
+</script>
+{% endblock %}

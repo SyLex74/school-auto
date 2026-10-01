@@ -1,0 +1,391 @@
+.container {
+    max-width: 95% !important;
+    width: 100% !important;
+    padding: 0 20px !important;
+    margin: 0 auto !important;
+}
+
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1400px !important;
+    }
+}
+
+/* ========== ПЕРЕМЕННЫЕ ДЛЯ СТИЛЕЙ ========== */
+:root {
+    --bg-body: #f5f7fa;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fcff;
+    --bg-tertiary: #e6f0fa;
+    --bg-card: #ffffff;
+    --bg-header: #ffffff;
+    --bg-footer: #f8fafc;
+    --bg-modal: #ffffff;
+    --bg-input: #ffffff;
+    --bg-table-header: #e6f0fa;
+    --bg-table-stripe: #f8fcff;
+    
+    --text-primary: #1e293b;
+    --text-secondary: #2c3e50;
+    --text-muted: #64748b;
+    --text-white: #ffffff;
+    
+    --border-color: #b0c4de;
+    --border-light: #d0e0f0;
+    --border-dark: #8ba9c4;
+    
+    --btn-primary-bg: #0b3b5c;
+    --btn-primary-text: #ffffff;
+    --btn-secondary-bg: #e2e8f0;
+    --btn-secondary-text: #1e293b;
+    --btn-danger-bg: #dc3545;
+    --btn-danger-text: #ffffff;
+    
+    --success-bg: #d4edda;
+    --success-text: #155724;
+    --error-bg: #f8d7da;
+    --error-text: #721c24;
+    --warning-bg: #fff3cd;
+    --warning-text: #856404;
+    
+    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
+    
+    /* Размер шрифта по умолчанию (100%) */
+    --font-scale: 1;
+}
+
+h-text {
+    color: var(--text-primary)
+}
+/* Применение масштаба шрифта */
+body {
+    font-size: calc(16px * var(--font-scale));
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    transition: var(--transition);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Масштабирование всех элементов */
+body * {
+    font-size: inherit;
+}
+
+/* Дополнительное масштабирование для заголовков */
+h1 { font-size: calc(2rem * var(--font-scale)); }
+h2 { font-size: calc(1.5rem * var(--font-scale)); }
+h3 { font-size: calc(1.25rem * var(--font-scale)); }
+
+/* Панель доступности */
+.accessibility-panel {
+    position: fixed;
+    top: 80px;
+    right: -300px;
+    width: 280px;
+    background: var(--bg-modal);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: var(--shadow);
+    z-index: 10000;
+    transition: right 0.3s ease;
+}
+
+.accessibility-panel.open {
+    right: 20px;
+}
+
+.accessibility-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.accessibility-panel-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.accessibility-panel-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0 5px;
+}
+
+.accessibility-panel-close:hover {
+    color: var(--error-text);
+}
+
+.font-size-control {
+    margin-bottom: 15px;
+}
+
+.font-size-label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.font-size-slider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.font-size-value {
+    text-align: center;
+    color: var(--text-primary);
+    margin-top: 5px;
+}
+
+.font-size-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.font-size-btn {
+    flex: 1;
+    padding: 8px;
+    background: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.font-size-btn:hover {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.reset-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: var(--transition);
+}
+
+.reset-btn:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+/* Кнопка открытия панели - ПОЯВЛЯЕТСЯ ТОЛЬКО В РЕЖИМЕ ДЛЯ СЛАБОВИДЯЩИХ */
+.accessibility-toggle-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    display: none; /* Скрыта по умолчанию */
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    z-index: 9999;
+}
+
+.accessibility-toggle-btn:hover {
+    transform: scale(1.1);
+}
+
+.accessibility-toggle-btn.show {
+    display: flex; /* Показываем только когда есть класс show */
+    animation: bounceIn 0.5s ease;
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+header {
+    background: var(--bg-header);
+    border-bottom: 2px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: var(--shadow);
+}
+
+footer {
+    background: var(--bg-footer);
+    border-top: 1px solid var(--border-color);
+    margin-top: 50px;
+    padding: 30px 0;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: calc(1.3rem * var(--font-scale));
+    font-weight: bold;
+}
+
+.logo-icon {
+    font-size: calc(1.5rem * var(--font-scale));
+}
+
+.logo-text {
+    color: var(--text-primary);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.nav-link.active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+/* Кнопка режима для слабовидящих в хедере */
+.vision-header-btn {
+    background: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.vision-header-btn:hover {
+    transform: scale(1.05);
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: calc(1.1rem * var(--font-scale));
+}
+
+.footer-text {
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px;
+}
+
+.footer-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.footer-link:hover {
+    color: var(--text-primary);
+}
+
+/* Режим для слабовидящих - дополнительные стили */
+[data-vision="impaired"] {
+    --text-primary: #000000 !important;
+    --text-secondary: #000000 !important;
+    --border-color: #000000 !important;
+    --border-light: #000000 !important;
+}
+
+[data-vision="impaired"] button,
+[data-vision="impaired"] .btn,
+[data-vision="impaired"] .nav-link,
+[data-vision="impaired"] .day-btn,
+[data-vision="impaired"] .view-btn {
+    font-weight: bold !important;
+}
+
+[data-vision="impaired"] .class-table-wrapper {
+    border-width: 3px !important;
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+    }
+    .nav-links {
+        justify-content: center;
+    }
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    .accessibility-panel {
+        width: 260px;
+        right: -280px;
+    }
+}

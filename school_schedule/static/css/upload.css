@@ -1,0 +1,194 @@
+/* upload.css - стили для страницы загрузки расписания */
+
+.upload-wrapper {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.upload-card {
+    background: white;
+    border-radius: 32px;
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.upload-header {
+    background: linear-gradient(125deg, #0a2f44 0%, #166a8f 100%);
+    padding: 30px 35px;
+    color: white;
+    text-align: center;
+}
+
+.upload-header h1 {
+    font-size: 2rem;
+    margin: 0 0 8px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.upload-header p {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.upload-body {
+    padding: 35px;
+}
+
+.drop-zone {
+    border: 2px dashed #cbdbe0;
+    border-radius: 24px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #fafcff;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-bottom: 20px;
+}
+
+.drop-zone:hover {
+    border-color: #0a2f44;
+    background: #f0f7ff;
+}
+
+.drop-zone.drag-over {
+    border-color: #0a2f44;
+    background: #e6f0fa;
+    transform: scale(0.98);
+}
+
+.drop-zone-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #6c86a3;
+}
+
+.drop-zone-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #0a2f44;
+    margin-bottom: 8px;
+}
+
+.drop-zone-subtitle {
+    font-size: 0.85rem;
+    color: #6c7a91;
+}
+
+.file-input {
+    display: none;
+}
+
+.selected-file {
+    background: #eef3fc;
+    border-radius: 60px;
+    padding: 12px 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin: 15px 0 20px;
+    font-size: 0.9rem;
+    color: #0a2f44;
+    word-break: break-all;
+}
+
+.selected-file span {
+    font-weight: 600;
+}
+
+.remove-file {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #b44;
+    padding: 0 4px;
+}
+
+.remove-file:hover {
+    color: #c00;
+}
+
+.btn-upload {
+    background: #0a2f44;
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 60px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn-upload:hover:not(:disabled) {
+    background: #1f5e8c;
+    transform: translateY(-2px);
+}
+
+.btn-upload:disabled {
+    background: #b0c4de;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-back {
+    display: inline-block;
+    margin-top: 25px;
+    background: #eef2f7;
+    color: #0a2f44;
+    padding: 10px 24px;
+    border-radius: 60px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: 0.2s;
+    text-align: center;
+}
+
+.btn-back:hover {
+    background: #e0e7ef;
+}
+
+.message {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.message.success {
+    background: #d1fae5;
+    color: #065f46;
+    border-left: 4px solid #10b981;
+}
+
+.message.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #dc2626;
+}
+
+.file-info {
+    font-size: 0.8rem;
+    color: #6c7a91;
+    text-align: center;
+    margin-top: 20px;
+}
+
+@media (max-width: 640px) {
+    .upload-body {
+        padding: 24px;
+    }
+    .drop-zone {
+        padding: 30px 15px;
+    }
+    .upload-header h1 {
+        font-size: 1.6rem;
+    }
+}

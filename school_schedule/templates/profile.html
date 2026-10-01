@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Мой профиль{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .main-teacher-badge {
+        background: #10b981;
+        color: white;
+        padding: 2px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 8px;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {{ user.profile.full_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+        </div>
+        <div class="profile-info">
+            <h1>{{ user.profile.full_name|default:user.username }}</h1>
+            <p><span class="info-label">👤 Логин:</span> @{{ user.username }}</p>
+            <p><span class="info-label">📧 Email:</span> {{ user.email }}</p>
+            
+            <!-- Информация о месте работы -->
+            {% if user.profile.region %}
+                <p><span class="info-label">📍 Регион:</span> {{ user.profile.region.name }}</p>
+            {% endif %}
+            {% if user.profile.city %}
+                <p><span class="info-label">🏙️ Город:</span> {{ user.profile.city.name }}</p>
+            {% endif %}
+            
+            <!-- Школа с отображением статуса главного учителя -->
+            {% if user.profile.school %}
+                <p>
+                    <span class="info-label">🏫 Школа:</span> 
+                    {{ user.profile.school.name }}
+                    {% if user.profile.is_main_teacher %}
+                        <span class="main-teacher-badge">👑 Главный учитель</span>
+                    {% endif %}
+                </p>
+            {% endif %}
+            
+            {% if user.profile.position %}
+                <p><span class="info-label">💼 Должность:</span> {{ user.profile.position }}</p>
+            {% endif %}
+            
+            <p><span class="info-label">📅 Регистрация:</span> {{ user.date_joined|date:"d F Y" }}</p>
+        </div>
+        <div class="profile-actions">
+            <a href="{% url 'schedule_app:profile_edit' %}" class="btn-glass">✏️ Редактировать</a>
+            <a href="{% url 'schedule_app:choice' %}" class="btn-glass">📋 Создать расписание</a>
+            <a href="{% url 'schedule_app:logout' %}" class="btn-glass">🚪 Выйти</a>
+        </div>
+    </div>
+
+    <div class="profile-tabs">
+        <button class="tab-btn active" data-tab="schedules">📋 Мои расписания</button>
+        <button class="tab-btn" data-tab="stats">📊 Статистика</button>
+    </div>
+
+    <div id="tab-schedules" class="tab-content active">
+        <div class="schedules-header">
+            <h2>Сохранённые расписания</h2>
+            <div class="schedule-stats">{{ schedules|length }} {{ schedules|length|pluralize:"день,дня,дней" }}</div>
+        </div>
+        {% if schedules %}
+            <div class="schedules-grid">
+                {% for sched in schedules %}
+                    <div class="schedule-card" data-id="{{ sched.id }}">
+                        <div class="schedule-day">
+                            {{ sched.get_day_display }}
+                            <span class="badge-date">{{ sched.updated_at|date:"d.m.Y" }}</span>
+                        </div>
+                        <div class="schedule-meta">
+                            <span>📅 {{ sched.created_at|date:"d.m.Y" }}</span>
+                            <span>🔄 {{ sched.updated_at|date:"d.m.Y" }}</span>
+                        </div>
+                        <div class="class-list">
+                            {% for class_data in sched.schedule_data|slice:":4" %}
+                                <span class="class-tag-sm">{{ class_data.name }}</span>
+                            {% endfor %}
+                            {% if sched.schedule_data|length > 4 %}
+                                <span class="class-tag-sm">+{{ sched.schedule_data|length|add:"-4" }}</span>
+                            {% endif %}
+                        </div>
+                        <table class="preview-table">
+                            <thead>
+                                <tr><th>Урок</th><th>Предмет</th><th>Кабинет</th></tr>
+                            </thead>
+                            <tbody>
+                                {% with first_class=sched.schedule_data.0 %}
+                                    {% for lesson in first_class.lessons|slice:":3" %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ lesson.subject|default:"—" }}</td>
+                                            <td>{{ lesson.classrooms.0.classroom|default:"—" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% endwith %}
+                                <tr><td colspan="3" style="text-align:center;">… и еще уроки</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="schedule-actions">
+                            <a href="{% url 'schedule_app:schedule' %}?day={{ sched.day }}" class="btn-sm">✏️ Открыть</a>
+                            <button class="btn-sm preview-image-btn" data-day="{{ sched.get_day_display }}" data-id="{{ sched.id }}">👁️ Просмотр</button>
+                            <button class="btn-sm btn-delete delete-btn" data-id="{{ sched.id }}">🗑️ Удалить</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3>Пока пусто</h3>
+                <p>Создайте расписание – оно появится здесь.</p>
+                <a href="{% url 'schedule_app:choice' %}" class="btn-glass" style="background:#0a2f44; color:white;">✨ Создать первое расписание</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div id="tab-stats" class="tab-content">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📋</div>
+                <div class="stat-number" id="statSchedules">0</div>
+                <div class="stat-label">Сохранённых расписаний</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📚</div>
+                <div class="stat-number" id="statLessons">0</div>
+                <div class="stat-label">Всего уроков</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🏫</div>
+                <div class="stat-number" id="statClasses">0</div>
+                <div class="stat-label">Классов в расписаниях</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-number" id="statSubjects">0</div>
+                <div class="stat-label">Уникальных предметов</div>
+            </div>
+        </div>
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3>📅 Расписания по дням недели</h3>
+                <canvas id="dayChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>🎓 Количество уроков по дням</h3>
+                <canvas id="lessonsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="schedules-data" style="display: none;" data-schedules='{{ schedules_json|default:"[]" }}'></div>
+
+<div id="previewModal" class="modal-preview">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Предпросмотр расписания</h2>
+            <button class="modal-close" id="modalCloseBtn">✕</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <img id="previewImage" src="" alt="Предпросмотр" style="max-width:100%; display:none;">
+            <div id="fallbackTable" style="display:none;"></div>
+            <button id="downloadImageBtn" class="download-btn" style="display:none;">📸 Скачать как PNG</button>
+        </div>
+    </div>
+</div>
+
+<div id="tempRender" style="position: absolute; left: -9999px; top: 0;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+    (function() {
+        const schedulesContainer = document.getElementById('schedules-data');
+        let schedulesList = [];
+        if (schedulesContainer && schedulesContainer.dataset.schedules) {
+            try {
+                schedulesList = JSON.parse(schedulesContainer.dataset.schedules);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+        
+        const dayNames = {
+            'monday': 'Понедельник',
+            'tuesday': 'Вторник',
+            'wednesday': 'Среда',
+            'thursday': 'Четверг',
+            'friday': 'Пятница',
+            'saturday': 'Суббота',
+            'sunday': 'Воскресенье'
+        };
+        
+        let stats = {
+            totalSchedules: schedulesList.length,
+            totalLessons: 0,
+            totalClasses: 0,
+            subjectsCount: {},
+            daySchedules: {
+                'monday': 0, 'tuesday': 0, 'wednesday': 0, 'thursday': 0, 'friday': 0, 'saturday': 0, 'sunday': 0
+            },
+            dayLessons: {
+                'monday': 0, 'tuesday': 0, 'wednesday': 0, 'thursday': 0, 'friday': 0, 'saturday': 0, 'sunday': 0
+            }
+        };
+        
+        for (let sched of schedulesList) {
+            const day = sched.day;
+            if (stats.daySchedules[day] !== undefined) stats.daySchedules[day]++;
+            for (let classData of sched.schedule_data) {
+                stats.totalClasses++;
+                if (classData.lessons) {
+                    for (let lesson of classData.lessons) {
+                        if (lesson.subject && lesson.subject !== '—' && lesson.subject !== '--|--') {
+                            stats.totalLessons++;
+                            stats.dayLessons[day] = (stats.dayLessons[day] || 0) + 1;
+                            const subject = lesson.subject;
+                            if (!stats.subjectsCount[subject]) stats.subjectsCount[subject] = 0;
+                            stats.subjectsCount[subject]++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        document.getElementById('statSchedules').innerText = stats.totalSchedules;
+        document.getElementById('statLessons').innerText = stats.totalLessons;
+        document.getElementById('statClasses').innerText = stats.totalClasses;
+        document.getElementById('statSubjects').innerText = Object.keys(stats.subjectsCount).length;
+        
+        new Chart(document.getElementById('dayChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Object.values(dayNames),
+                datasets: [{
+                    label: 'Количество расписаний',
+                    data: Object.values(stats.daySchedules),
+                    backgroundColor: '#166a8f',
+                    borderRadius: 8,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+        
+        new Chart(document.getElementById('lessonsChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: Object.values(dayNames),
+                datasets: [{
+                    label: 'Количество уроков',
+                    data: Object.values(stats.dayLessons),
+                    borderColor: '#0a2f44',
+                    backgroundColor: 'rgba(10, 47, 68, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#166a8f',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+        
+        const modal = document.getElementById('previewModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const previewImage = document.getElementById('previewImage');
+        const fallbackDiv = document.getElementById('fallbackTable');
+        const downloadBtn = document.getElementById('downloadImageBtn');
+        const closeModalBtn = document.getElementById('modalCloseBtn');
+        
+        function showNotification(message, type) {
+            type = type || 'success';
+            const toast = document.createElement('div');
+            toast.className = 'notification-toast ' + type;
+            toast.innerHTML = (type === 'success' ? '✓ ' : '⚠️ ') + message;
+            document.body.appendChild(toast);
+            setTimeout(function() { if (toast && toast.remove) toast.remove(); }, 3000);
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function generateScheduleHTML(scheduleData, dayName) {
+            const classes = scheduleData;
+            let maxLessons = 0;
+            for (let c of classes) {
+                if (c.lessons && c.lessons.length > maxLessons) {
+                    maxLessons = c.lessons.length;
+                }
+            }
+            let html = '<div style="padding: 20px; background: white; border-radius: 16px;">';
+            html += '<h3 style="text-align:center; margin-bottom:20px;">📋 ' + escapeHtml(dayName) + '</h3>';
+            html += '<table style="border-collapse: collapse; width: 100%;"><thead><tr><th style="border:1px solid #ccc; padding:8px;">Урок</th>';
+            for (let c of classes) {
+                html += '<th style="border:1px solid #ccc; padding:8px;">' + escapeHtml(c.name) + '</th>';
+            }
+            html += '</tr></thead><tbody>';
+            for (let i = 0; i < maxLessons; i++) {
+                html += '<tr><td style="border:1px solid #ccc; padding:8px;">' + (i+1) + '</td>';
+                for (let c of classes) {
+                    const lesson = c.lessons[i];
+                    let text = '—';
+                    if (lesson && lesson.subject && lesson.subject !== '--|--') {
+                        text = escapeHtml(lesson.subject);
+                        if (lesson.classrooms && lesson.classrooms.length) {
+                            text += ' ' + lesson.classrooms.map(function(cr) { return cr.classroom; }).join('/');
+                        }
+                    }
+                    html += '<td style="border:1px solid #ccc; padding:8px;">' + text + '</td>';
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+            return html;
+        }
+        
+        async function showScheduleImage(scheduleId, dayName) {
+            const scheduleData = schedulesData[scheduleId];
+            if (!scheduleData) {
+                showNotification('Данные расписания не найдены', 'error');
+                return;
+            }
+            const tempDiv = document.getElementById('tempRender');
+            tempDiv.innerHTML = generateScheduleHTML(scheduleData, dayName);
+            await new Promise(function(r) { setTimeout(r, 100); });
+            modalTitle.innerText = '📋 ' + dayName;
+            if (typeof html2canvas === 'undefined') {
+                fallbackDiv.innerHTML = tempDiv.innerHTML;
+                fallbackDiv.style.display = 'block';
+                previewImage.style.display = 'none';
+                downloadBtn.style.display = 'none';
+                modal.classList.add('show');
+                return;
+            }
+            try {
+                const canvas = await html2canvas(tempDiv, { scale: 2, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/png');
+                previewImage.src = imgData;
+                previewImage.style.display = 'block';
+                fallbackDiv.style.display = 'none';
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = function() {
+                    const link = document.createElement('a');
+                    link.download = 'schedule_' + dayName.replace(/\s/g, '_') + '.png';
+                    link.href = imgData;
+                    link.click();
+                };
+                modal.classList.add('show');
+            } catch(e) {
+                console.error(e);
+                fallbackDiv.innerHTML = tempDiv.innerHTML;
+                fallbackDiv.style.display = 'block';
+                previewImage.style.display = 'none';
+                downloadBtn.style.display = 'none';
+                modal.classList.add('show');
+            }
+            finally {
+                tempDiv.innerHTML = '';
+            }
+        }
+        
+        const schedulesData = {};
+        for (let i = 0; i < schedulesList.length; i++) {
+            const s = schedulesList[i];
+            schedulesData[s.id] = s.schedule_data;
+        }
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+        }));
+        
+        document.querySelectorAll('.preview-image-btn').forEach(btn => btn.addEventListener('click', function() {
+            showScheduleImage(parseInt(this.dataset.id), this.dataset.day);
+        }));
+        
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        value = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return value;
+        }
+        const csrftoken = getCookie('csrftoken');
+        
+        document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async function() {
+            const card = this.closest('.schedule-card');
+            const id = this.dataset.id;
+            if (!confirm('Удалить это расписание?')) return;
+            try {
+                const res = await fetch('/api/delete_schedule/' + id + '/', {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrftoken }
+                });
+                if (res.ok) {
+                    if (card) card.remove();
+                    showNotification('Расписание удалено');
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    showNotification('Ошибка удаления', 'error');
+                }
+            } catch(e) {
+                showNotification('Ошибка сети', 'error');
+            }
+        }));
+        
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                if (modal) modal.classList.remove('show');
+            });
+        }
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.classList.remove('show');
+            });
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+                modal.classList.remove('show');
+            }
+        });
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Главная - ШкольноеРасписание{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/index.css' %}">
+<style>
+    /* ===== БЛОК С ВИДЕО И ИНСТРУКЦИЕЙ ===== */
+    .video-instruction-wrapper {
+        display: flex;
+        gap: 40px;
+        align-items: center;
+        margin: 40px 0;
+    }
+    
+    /* Инструкция слева */
+    .instructions {
+        flex: 1;
+        min-width: 300px;
+    }
+    
+    .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .step {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+        padding: 15px 20px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+    
+    .step:hover {
+        transform: translateX(5px);
+        border-color: #166a8f;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .step-number {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: #0a2f44;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+    
+    .step-content h3 {
+        font-size: 1rem;
+        color: #0a2f44;
+        margin-bottom: 4px;
+    }
+    
+    .step-content p {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin: 0;
+    }
+    
+    /* Видео справа */
+    .video-block {
+        flex: 1;
+        min-width: 300px;
+        max-width: 500px;
+    }
+    
+    .video-container {
+        position: relative;
+        padding-bottom: 56.25%;
+        height: 0;
+        background: #0a2f44;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    
+    .video-placeholder {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        cursor: pointer;
+        background: linear-gradient(135deg, #0a2f44, #166a8f);
+        transition: all 0.3s;
+        border-radius: 16px;
+    }
+    
+    .video-placeholder:hover {
+        background: linear-gradient(135deg, #166a8f, #0a2f44);
+    }
+    
+    .video-placeholder .play-icon {
+        font-size: 64px;
+        margin-bottom: 15px;
+        animation: pulse 2s infinite;
+    }
+    
+    .video-placeholder h3 {
+        color: white;
+        font-size: 1.3rem;
+        margin-bottom: 8px;
+    }
+    
+    .video-placeholder p {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.9rem;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.08); }
+    }
+    
+    .video-description {
+        margin-top: 15px;
+        padding: 15px 20px;
+        background: #f8fcff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .video-description h4 {
+        color: #0a2f44;
+        margin-bottom: 10px;
+        font-size: 1rem;
+    }
+    
+    .video-description ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+    }
+    
+    .video-description ul li {
+        font-size: 0.85rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .video-description ul li::before {
+        content: '✓';
+        color: #10b981;
+        font-weight: 700;
+    }
+    
+    /* ===== ЗАГОЛОВОК СЕКЦИИ ===== */
+    .section-title {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .section-title h2 {
+        font-size: 2rem;
+        color: #0a2f44;
+        margin-bottom: 10px;
+    }
+    
+    .section-title p {
+        color: #64748b;
+        font-size: 1.05rem;
+    }
+    
+    /* ===== АДАПТИВНОСТЬ ===== */
+    @media (max-width: 992px) {
+        .video-instruction-wrapper {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+        .video-block {
+            max-width: 100%;
+            min-width: auto;
+        }
+        .instructions {
+            min-width: auto;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .video-placeholder .play-icon {
+            font-size: 44px;
+        }
+        .video-placeholder h3 {
+            font-size: 1.1rem;
+        }
+        .video-description ul {
+            flex-direction: column;
+            gap: 5px;
+        }
+        .step {
+            padding: 12px 15px;
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <h1 class="hero-title">Создавайте школьное расписание за пару минут</h1>
+            <p class="hero-subtitle">Простой и бесплатный инструмент для учителей и администрации школ</p>
+            <a href="{% url 'schedule_app:choice' %}" class="btn btn-primary btn-large">
+                <span class="btn-icon">🎯</span>
+                Начать создание
+            </a>
+        </div>
+        <div class="hero-image">
+            <div class="demo-schedule">
+                <div class="demo-header">Пример расписания</div>
+                <table class="demo-table">
+                    <thead>
+                        <tr><th>Урок</th><th>Предмет</th><th>Кабинет</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Математика</td><td>Каб. 8</td></tr>
+                        <tr><td>2</td><td>Русский язык</td><td>Каб. 17</td></tr>
+                        <tr><td>3</td><td>Физкультура</td><td>Спортзал</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Возможности -->
+<section class="features-section">
+    <div class="container">
+        <div class="section-header" style="text-align: center; padding-bottom: 15px;">
+            <h2>✨ Всё, что нужно для работы</h2>
+            <p>Мощный функционал в удобном интерфейсе</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">✍️</div>
+                <div class="feature-title">Ручное создание</div>
+                <div class="feature-desc">Полный контроль над каждым уроком. Выбирайте предметы и кабинеты самостоятельно.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <div class="feature-title">Автогенерация</div>
+                <div class="feature-desc">ИИ сам составит оптимальное расписание на основе ваших предпочтений.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📂</div>
+                <div class="feature-title">Импорт Excel</div>
+                <div class="feature-desc">Загрузите готовое расписание из Excel. Поддерживаются все популярные форматы.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">Экспорт Excel</div>
+                <div class="feature-desc">Скачивайте готовые расписания в формате Excel для печати.</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👁️</div>
+                <div class="feature-title">Режим для слабовидящих</div>
+                <div class="feature-desc">Увеличивайте шрифт и меняйте контрастность для комфортной работы.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Видео + Инструкция в две колонки (видео справа) -->
+<section class="instructions-section">
+    <div class="container">
+        <div class="section-title" style="padding-top: 30px;">
+            <h2>📚 Как это работает?</h2>
+            <p>Пошаговое руководство и видео-инструкция</p>
+        </div>
+        
+        <div class="video-instruction-wrapper">
+            <!-- Инструкция слева -->
+            <div class="instructions">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Выберите день недели</h3>
+                            <p>Начните с выбора дня, для которого нужно создать расписание уроков</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Добавьте классы</h3>
+                            <p>Создайте таблицу для каждого класса. Можно добавить сколько угодно классов</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Заполните уроки</h3>
+                            <p>Выбирайте предметы из списка и назначайте кабинеты для каждого урока</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Скачайте в Excel</h3>
+                            <p>Готовое расписание можно скачать в формате Excel одним кликом</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Видео справа -->
+            <div class="video-block">
+                <div class="video-container">
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <div class="play-icon">▶️</div>
+                        <h3>Видео-инструкция</h3>
+                        <p>Нажмите для просмотра • 2 минуты</p>
+                    </div>
+                </div>
+                <div class="video-description">
+                    <h4>📚 Что вы узнаете из видео:</h4>
+                    <ul>
+                        <li>Как выбрать день недели</li>
+                        <li>Как добавить классы</li>
+                        <li>Как заполнить уроки</li>
+                        <li>Как скачать в Excel</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+    <div class="container">
+        <div class="cta-content">
+            <h2>Готовы создать свое первое расписание?</h2>
+            <p>Попробуйте прямо сейчас - это бесплатно и не требует регистрации!</p>
+            <a href="{% url 'schedule_app:choice' %}" class="btn btn-primary btn-large">
+                <span class="btn-icon">✨</span>
+                Создать расписание
+            </a>
+        </div>
+    </div>
+</section>
+
+<script>
+    // Видео-заглушка
+    const videoPlaceholder = document.getElementById('videoPlaceholder');
+    if (videoPlaceholder) {
+        videoPlaceholder.addEventListener('click', function() {
+            alert('🎬 Видео-инструкция будет добавлена позже.\n\nА пока вы можете попробовать создать расписание самостоятельно!');
+        });
+    }
+</script>
+{% endblock %}

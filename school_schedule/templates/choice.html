@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Выбор режима работы{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/choice.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Как создать <span>расписание</span>?</h1>
+        <p>Выберите удобный способ</p>
+    </div>
+    
+    <div class="choice-container">
+        <div class="choice-card" id="manualChoice">
+            <div class="choice-icon-wrapper">
+                <div class="choice-icon">✍️</div>
+            </div>
+            <div class="choice-title">Вручную</div>
+            <div class="choice-desc">
+                Создайте расписание шаг за шагом. Выбирайте предметы, кабинеты и время — полный контроль над каждой деталью.
+            </div>
+            <div class="choice-btn">
+                Создать вручную <span>→</span>
+            </div>
+        </div>
+        
+        <div class="choice-card" id="autoChoice">
+            <div class="choice-icon-wrapper">
+                <div class="choice-icon">🤖</div>
+            </div>
+            <div class="choice-title">Автогенерация</div>
+            <div class="choice-desc">
+                Алгоритм сам составит оптимальное расписание на основе ваших предпочтений. Быстро и эффективно.
+            </div>
+            <div class="choice-btn">
+                Сгенерировать <span>→</span>
+            </div>
+        </div>
+        
+        <div class="choice-card" id="uploadChoice">
+            <div class="choice-icon-wrapper">
+                <div class="choice-icon">📂</div>
+            </div>
+            <div class="choice-title">Загрузить файл</div>
+            <div class="choice-desc">
+                Загрузите готовое расписание из Excel. Поддерживаются все популярные форматы таблиц.
+            </div>
+            <div class="choice-btn">
+                Загрузить файл <span>→</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const manualCard = document.getElementById('manualChoice');
+    const autoCard = document.getElementById('autoChoice');
+    const uploadCard = document.getElementById('uploadChoice');
+    
+    function navigateWithEffect(url, element) {
+        element.style.transform = 'scale(0.97)';
+        element.style.transition = 'transform 0.15s ease';
+        setTimeout(() => { window.location.href = url; }, 120);
+    }
+    
+    manualCard.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigateWithEffect("{% url 'schedule_app:schedule' %}", manualCard);
+    });
+    
+    autoCard.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigateWithEffect("{% url 'schedule_app:auto_schedule' %}", autoCard);
+    });
+    
+    uploadCard.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigateWithEffect("{% url 'schedule_app:upload_schedule' %}", uploadCard);
+    });
+</script>
+{% endblock %}

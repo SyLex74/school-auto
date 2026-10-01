@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Автогенерация расписания{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/schedule.css' %}">
+<link rel="stylesheet" href="{% static 'css/modal.css' %}">
+<link rel="stylesheet" href="{% static 'css/auto_schedule.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auto-container">
+    <div class="auto-header">
+        <h1>Автогенерация расписания</h1>
+        <p>Система сама составит расписание на основе ваших предпочтений</p>
+    </div>
+
+    <div class="auto-day-section">
+        <h2 class="auto-section-title">1. Выберите день недели</h2>
+        <div class="auto-day-buttons">
+            <button class="auto-day-btn" data-day="monday">Понедельник</button>
+            <button class="auto-day-btn" data-day="tuesday">Вторник</button>
+            <button class="auto-day-btn" data-day="wednesday">Среда</button>
+            <button class="auto-day-btn" data-day="thursday">Четверг</button>
+            <button class="auto-day-btn" data-day="friday">Пятница</button>
+            <button class="auto-day-btn" data-day="saturday">Суббота</button>
+        </div>
+    </div>
+
+    <div class="auto-template-section" id="templateSelection" style="display: none;">
+        <h2 class="auto-section-title">2. Выберите шаблон расписания</h2>
+        <div id="templateList" class="auto-template-list"></div>
+        <button id="createNewTemplateBtn" class="auto-btn-outline">+ Создать новый шаблон</button>
+    </div>
+
+    <div id="scheduleArea" class="auto-schedule-area hidden">
+        <div class="auto-schedule-header">
+            <h2 id="selectedDayTitle"></h2>
+            <p>Сгенерированное расписание (проверьте и сохраните)</p>
+        </div>
+        <div id="classesContainer" class="auto-classes-container"></div>
+        <div class="auto-actions">
+            <button id="saveScheduleBtn" class="auto-btn-primary" style="display: none;">Сохранить расписание</button>
+            <button id="regenerateBtn" class="auto-btn-secondary">Сгенерировать заново</button>
+        </div>
+    </div>
+</div>
+
+<div id="templateModal" class="modal hidden">
+    <div class="modal-content auto-modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Создание шаблона</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="templateModalBody"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/core/constants.js' %}"></script>
+<script src="{% static 'js/managers/classManager.js' %}"></script>
+<script src="{% static 'js/managers/conflictManager.js' %}"></script>
+<script src="{% static 'js/managers/exportManager.js' %}"></script>
+<script src="{% static 'js/auto/templateManager.js' %}"></script>
+<script src="{% static 'js/auto/scheduleGenerator.js' %}"></script>
+<script src="{% static 'js/auto/autoUIManager.js' %}"></script>
+<script src="{% static 'js/auto/main.js' %}"></script>
+{% endblock %}

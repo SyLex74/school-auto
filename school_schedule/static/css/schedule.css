@@ -1,0 +1,558 @@
+/* schedule.css - Таблицы расписания с поддержкой тем */
+
+/* --- Выбор дня --- */
+.day-selection {
+    background: var(--bg-secondary);
+    padding: 25px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 30px;
+}
+
+.day-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.day-btn {
+    padding: 12px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+}
+
+.day-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--btn-primary-bg);
+}
+
+.day-btn.active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-color: var(--btn-primary-bg);
+}
+
+/* --- Область расписания --- */
+.schedule-area {
+    margin: 30px 0;
+}
+
+.area-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+}
+
+#selectedDayTitle {
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
+/* --- Контейнер классов --- */
+.classes-container {
+    margin-bottom: 30px;
+    transition: var(--transition);
+}
+
+/* --- Карточка класса --- */
+.class-table-wrapper {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    transition: var(--transition);
+    overflow-x: auto;
+}
+
+.class-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.class-input {
+    flex: 1;
+    max-width: 250px;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-input);
+}
+
+.class-input:focus {
+    outline: none;
+    border-color: var(--btn-primary-bg);
+}
+
+.delete-class-btn {
+    background: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
+    border: none;
+    border-radius: 6px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.delete-class-btn:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+}
+
+/* --- Таблица уроков --- */
+.schedule-table {
+    width: 100% !important;
+    min-width: 600px;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    border: 2px solid var(--border-color);
+}
+
+.schedule-table th,
+.schedule-table td {
+    padding: 14px 12px;
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.schedule-table th {
+    background-color: var(--bg-table-header);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.schedule-table td:first-child {
+    text-align: center;
+    font-weight: 600;
+    background-color: var(--bg-table-stripe);
+    color: var(--text-primary);
+    width: 80px;
+}
+
+/* --- Состояния ячеек --- */
+.subject-filled {
+    background-color: var(--bg-tertiary) !important;
+    font-weight: 500;
+}
+
+.classroom-filled {
+    background-color: var(--bg-tertiary) !important;
+}
+
+.subject-skip {
+    background-color: var(--warning-bg) !important;
+    color: var(--warning-text) !important;
+}
+
+.has-conflict {
+    background-color: var(--error-bg) !important;
+}
+
+.has-conflict td {
+    border-color: var(--error-text) !important;
+}
+
+.conflict-badge {
+    margin-left: 8px;
+    color: var(--error-text);
+    font-weight: 600;
+    cursor: help;
+    font-size: 0.9rem;
+}
+
+/* Кнопка удаления урока */
+.delete-lesson-btn {
+    background: none;
+    border: 2px solid var(--btn-danger-bg);
+    color: var(--btn-danger-bg);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    margin: 0 auto;
+}
+
+.delete-lesson-btn:hover {
+    background: var(--btn-danger-bg);
+    color: var(--btn-danger-text);
+    transform: scale(1.05);
+}
+
+/* Ячейка с кабинетами */
+.classroom-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.classroom-count {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.classroom-count:hover {
+    transform: scale(1.1);
+}
+
+/* Кнопки управления */
+.controls {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin: 30px 0 20px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+    font-weight: 500;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--btn-primary-bg);
+    color: var(--btn-primary-bg);
+}
+
+.btn-outline:hover {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.btn-primary {
+    background: var(--btn-primary-bg);
+    border: none;
+    color: var(--btn-primary-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.btn-secondary {
+    background: var(--btn-secondary-bg);
+    border: none;
+    color: var(--btn-secondary-text);
+}
+
+.btn-secondary:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.btn-large {
+    padding: 14px 36px;
+    font-size: 1.1rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+    margin-bottom: 40px;
+}
+
+.hidden {
+    display: none;
+}
+
+.section-title {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+/* ========== ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ ========== */
+.view-toggle-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.view-toggle {
+    display: inline-flex;
+    gap: 5px;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.view-btn {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: var(--transition);
+}
+
+.view-btn.active {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+/* ========== РЕЖИМ СЕТКА ========== */
+.classes-container.grid-mode {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 25px !important;
+}
+
+.classes-container.grid-mode .class-table-wrapper {
+    margin-bottom: 0 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.classes-container.grid-mode .schedule-table {
+    flex: 1;
+    min-width: auto;
+}
+
+@media (max-width: 992px) {
+    .classes-container.grid-mode {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ========== РЕЖИМ КОЛОНКА ========== */
+.classes-container.column-mode {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 25px !important;
+}
+
+/* Полоса прокрутки */
+.class-table-wrapper::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.class-table-wrapper::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.class-table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.class-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--btn-primary-bg);
+}
+
+/* Стили для модальных окон */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: var(--bg-modal);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.item-btn {
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text-primary);
+}
+
+.item-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--btn-primary-bg);
+}
+
+/* schedule.css - дополнение (добавить в конец файла) */
+
+/* Дополнительные стили для страницы расписания */
+.view-toggle-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color, #d0e0f0);
+}
+
+.view-toggle {
+    display: inline-flex;
+    gap: 5px;
+    background: var(--bg-tertiary, #e2e8f0);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.view-btn {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary, #1e293b);
+    transition: all 0.2s;
+}
+
+.view-btn.active {
+    background: var(--btn-primary-bg, #0b3b5c);
+    color: var(--btn-primary-text, white);
+}
+
+.classes-container.grid-mode {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 25px !important;
+}
+
+.classes-container.grid-mode .class-table-wrapper {
+    margin-bottom: 0 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.classes-container.grid-mode .schedule-table {
+    flex: 1;
+}
+
+.classes-container.column-mode {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 25px !important;
+}
+
+@media (max-width: 992px) {
+    .classes-container.grid-mode {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .view-btn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+}

@@ -1,0 +1,190 @@
+/* modal.css - Модальные окна (простой стиль) */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+.modal-content {
+    background: white;
+    border: 3px solid #0b3b5c; /* Синяя рамка */
+    border-radius: 6px;
+    width: 100%;
+    max-width: 550px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: #0b3b5c;
+    color: white;
+    border-bottom: 2px solid #1f4f70;
+}
+.modal-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.3rem;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: white;
+    line-height: 1;
+    padding: 0 8px;
+}
+.modal-close:hover {
+    background: rgba(255,255,255,0.2);
+}
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Поиск */
+.search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #b0c4de;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+.search-input:focus {
+    outline: none;
+    border-color: #0b3b5c;
+}
+
+/* Сетка элементов */
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+}
+.modal-item {
+    padding: 12px;
+    background: #f8fcff;
+    border: 2px solid #d0e0f0;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #1e293b;
+    cursor: pointer;
+    transition: 0.15s;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+}
+.modal-item:hover {
+    background: #e6f0fa;
+    border-color: #0b3b5c;
+}
+.modal-item.selected {
+    background: #0b3b5c;
+    color: white;
+    border-color: #0b3b5c;
+}
+.skip-item {
+    background: #fff3e0;
+    border-color: #ffb74d;
+    color: #b85c00;
+}
+.skip-item:hover {
+    background: #ffe0b2;
+}
+
+/* Управление кабинетами */
+.classrooms-container {
+    margin: 10px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 2px solid #d0e0f0;
+    border-radius: 4px;
+    padding: 10px;
+    background: #f8fcff;
+}
+.classroom-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 5px 0;
+    background: white;
+    border: 2px solid #d0e0f0;
+    border-radius: 4px;
+}
+.classroom-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.classroom-name {
+    font-weight: 600;
+    color: #0b3b5c;
+}
+.classroom-type {
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+.classroom-type.has-type {
+    background: #e6f0fa;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+.classroom-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.type-select-btn {
+    width: 34px;
+    height: 34px;
+    border: 2px solid #b0c4de;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.1s;
+}
+.type-select-btn:hover {
+    background: #e6f0fa;
+    border-color: #0b3b5c;
+}
+.type-select-btn.active {
+    background: #0b3b5c;
+    color: white;
+    border-color: #0b3b5c;
+}
+.delete-classroom-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    font-size: 24px;
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.delete-classroom-btn:hover {
+    background: #ffebee;
+}
