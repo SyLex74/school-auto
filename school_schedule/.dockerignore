@@ -1,0 +1,42 @@
+# Version control and local configuration
+.git
+.gitignore
+.env
+*.env
+
+# Local development tools
+.idea
+.vscode
+.venv
+venv
+env
+ENV
+
+# Python cache and build artifacts
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info
+.eggs
+build
+dist
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Runtime data and generated files
+db.sqlite3-journal
+staticfiles
+media
+*.log
+logs
+
+# Docker files are supplied by the build context only when needed
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+*.md

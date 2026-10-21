@@ -1,12 +1,40 @@
-from django.db import models
-from django.contrib.auth.models import User
-from django.contrib.sessions.models import Session
+"""Модели приложения: школы, профили, расписания, справочники."""
+
 import random
 import string
+from datetime import timedelta
 
+from django.contrib.auth.models import User
+from django.contrib.sessions.models import Session
+from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from django.utils import timezone
+
+
+# ─────────────────────────────────────────────────────────────
+# Общие константы
+# ─────────────────────────────────────────────────────────────
+
+DAY_CHOICES = [
+    ('monday', 'Понедельник'),
+    ('tuesday', 'Вторник'),
+    ('wednesday', 'Среда'),
+    ('thursday', 'Четверг'),
+    ('friday', 'Пятница'),
+    ('saturday', 'Суббота'),
+]
+
+EMAIL_CODE_TTL_SECONDS = 600  # 10 минут
+
+
+# ─────────────────────────────────────────────────────────────
+# Школы и профили
+# ─────────────────────────────────────────────────────────────
 
 class School(models.Model):
-    """Модель школы."""
+    """Учебное заведение с привязкой к городу и главному учителю."""
+
     name = models.CharField(max_length=200, verbose_name='Название школы')
     city = models.ForeignKey(
         'cities_light.City',
@@ -16,7 +44,6 @@ class School(models.Model):
     )
     address = models.CharField(max_length=255, blank=True, verbose_name='Адрес')
     phone = models.CharField(max_length=20, blank=True, verbose_name='Телефон')
-
     main_teacher = models.OneToOneField(
         User,
         on_delete=models.SET_NULL,
@@ -34,19 +61,26 @@ class School(models.Model):
     def __str__(self):
         return f'{self.name} ({self.city.name})'
 
-    def has_main_teacher(self):
-        return self.main_teacher is not None
+    @property
+    def is_main_teacher_assigned(self) -> bool:
+        """Назначен ли главный учитель."""
+        return self.main_teacher_id is not None
 
-    def get_main_teacher_name(self):
-        if self.main_teacher:
-            if hasattr(self.main_teacher, 'profile') and self.main_teacher.profile.full_name:
-                return self.main_teacher.profile.full_name
-            return self.main_teacher.username
-        return 'Не назначен'
+    def get_main_teacher_name(self) -> str:
+        """Человекочитаемое имя главного учителя или строка-заглушка."""
+        if not self.main_teacher:
+            return 'Не назначен'
+
+        profile = getattr(self.main_teacher, 'profile', None)
+        if profile and profile.full_name:
+            return profile.full_name
+
+        return self.main_teacher.username
 
 
 class Profile(models.Model):
     """Расширение стандартной модели User."""
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -90,7 +124,6 @@ class Profile(models.Model):
         blank=True,
         verbose_name='Должность',
     )
-
     registration_date = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Дата регистрации',
@@ -103,12 +136,18 @@ class Profile(models.Model):
     def __str__(self):
         return self.full_name or self.user.username
 
-    def is_main_teacher(self):
-        return bool(self.school and self.school.main_teacher == self.user)
+    def is_main_teacher(self) -> bool:
+        """Является ли пользователь главным учителем своей школы."""
+        return bool(self.school and self.school.main_teacher_id == self.user_id)
 
+
+# ─────────────────────────────────────────────────────────────
+# Подтверждение email
+# ─────────────────────────────────────────────────────────────
 
 class EmailVerification(models.Model):
-    """Коды подтверждения email."""
+    """Одноразовый код подтверждения email при регистрации."""
+
     email = models.EmailField(verbose_name='Email')
     code = models.CharField(max_length=6, verbose_name='Код подтверждения')
     user_data = models.JSONField(default=dict, verbose_name='Данные пользователя')
@@ -121,94 +160,114 @@ class EmailVerification(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'{self.email} - {self.code}'
+        return f'{self.email} — {self.code}'
 
     @staticmethod
-    def generate_code():
+    def generate_code() -> str:
+        """Шестизначный цифровой код."""
         return ''.join(random.choices(string.digits, k=6))
 
-    def is_expired(self, timeout_seconds=600):
-        from django.utils import timezone
-        from datetime import timedelta
-        expiration_time = self.created_at + timedelta(seconds=timeout_seconds)
-        return timezone.now() > expiration_time
+    def is_expired(self, timeout_seconds: int = EMAIL_CODE_TTL_SECONDS) -> bool:
+        """Истёк ли срок действия кода."""
+        return timezone.now() > self.created_at + timedelta(seconds=timeout_seconds)
 
+
+# ─────────────────────────────────────────────────────────────
+# Сохранённые расписания
+# ─────────────────────────────────────────────────────────────
 
 class SavedSchedule(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, null=True, blank=True)
-    day = models.CharField(max_length=20, choices=[
-        ('monday', 'Понедельник'),
-        ('tuesday', 'Вторник'),
-        ('wednesday', 'Среда'),
-        ('thursday', 'Четверг'),
-        ('friday', 'Пятница'),
-        ('saturday', 'Суббота'),
-    ])
-    schedule_data = models.JSONField()
+    """Сохранённое расписание на день для пользователя или анонимной сессии."""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name='Пользователь',
+    )
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name='Сессия',
+    )
+    day = models.CharField(max_length=20, choices=DAY_CHOICES, verbose_name='День недели')
+    schedule_data = models.JSONField(verbose_name='Данные расписания')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Сохранённое расписание'
         verbose_name_plural = 'Сохранённые расписания'
+        ordering = ['-updated_at']
 
     def __str__(self):
-        return f"{self.get_day_display()} - {self.user or 'Аноним'}"
-
-    def get_day_display(self):
-        return dict([
-            ('monday', 'Понедельник'),
-            ('tuesday', 'Вторник'),
-            ('wednesday', 'Среда'),
-            ('thursday', 'Четверг'),
-            ('friday', 'Пятница'),
-            ('saturday', 'Суббота'),
-        ]).get(self.day, self.day)
+        owner = self.user or 'Аноним'
+        return f'{self.get_day_display()} — {owner}'
 
 
-from django.db.models.signals import pre_save
-from django.dispatch import receiver
-
+# ─────────────────────────────────────────────────────────────
+# Сигналы
+# ─────────────────────────────────────────────────────────────
 
 @receiver(pre_save, sender=User)
-def update_profile_full_name(sender, instance, **kwargs):
-    if instance.pk:
-        try:
-            old = User.objects.get(pk=instance.pk)
-            if old.first_name != instance.first_name or old.last_name != instance.last_name:
-                full_name = f'{instance.first_name} {instance.last_name}'.strip()
-                if hasattr(instance, 'profile'):
-                    instance.profile.full_name = full_name
-                    instance.profile.save()
-        except User.DoesNotExist:
-            pass
+def sync_profile_full_name(sender, instance: User, **kwargs) -> None:
+    """Синхронизирует Profile.full_name при изменении имени/фамилии User."""
+    if not instance.pk:
+        return
 
+    try:
+        old = User.objects.get(pk=instance.pk)
+    except User.DoesNotExist:
+        return
+
+    name_changed = (
+        old.first_name != instance.first_name
+        or old.last_name != instance.last_name
+    )
+    if not name_changed:
+        return
+
+    full_name = f'{instance.first_name} {instance.last_name}'.strip()
+    profile = getattr(instance, 'profile', None)
+    if profile:
+        profile.full_name = full_name
+        profile.save(update_fields=['full_name'])
+
+
+# ─────────────────────────────────────────────────────────────
+# VK-ученики
+# ─────────────────────────────────────────────────────────────
 
 class VkUser(models.Model):
     """Профиль ученика в VK-боте."""
+
     vk_id = models.BigIntegerField(unique=True, verbose_name='VK ID')
     region = models.ForeignKey(
         'cities_light.Region',
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name='Регион',
     )
     city = models.ForeignKey(
         'cities_light.City',
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name='Город',
     )
     school = models.ForeignKey(
         School,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name='Школа',
     )
-    class_name = models.CharField(
-        max_length=10, blank=True, verbose_name='Класс',
-    )
+    class_name = models.CharField(max_length=10, blank=True, verbose_name='Класс')
+
     notifications_enabled = models.BooleanField(
         default=True,
         verbose_name='Уведомления включены',
@@ -221,6 +280,7 @@ class VkUser(models.Model):
         default=True,
         verbose_name='Зачёркивать прошедшие уроки',
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -233,16 +293,24 @@ class VkUser(models.Model):
         return f'VK {self.vk_id}: {school_name} {self.class_name}'.strip()
 
 
-class ScheduleChange(models.Model):
-    """Запись об изменении расписания для рассылки уведомлений.
+# ─────────────────────────────────────────────────────────────
+# Изменения расписания (для рассылки)
+# ─────────────────────────────────────────────────────────────
 
-    Если class_name пуст — изменение касается всех классов школы.
-    Если class_name заполнен — уведомление уйдёт только ученикам этого класса.
+class ScheduleChange(models.Model):
+    """Запись об изменении расписания для последующей рассылки уведомлений.
+
+    Если `class_name` пуст — изменение касается всех классов школы;
+    иначе — только учеников указанного класса.
     """
+
+    CHANGE_CREATED = 'created'
+    CHANGE_UPDATED = 'updated'
+    CHANGE_DELETED = 'deleted'
     CHANGE_TYPES = [
-        ('created', 'Добавлено'),
-        ('updated', 'Изменено'),
-        ('deleted', 'Удалено'),
+        (CHANGE_CREATED, 'Добавлено'),
+        (CHANGE_UPDATED, 'Изменено'),
+        (CHANGE_DELETED, 'Удалено'),
     ]
 
     school = models.ForeignKey(
@@ -258,17 +326,14 @@ class ScheduleChange(models.Model):
         verbose_name='Класс',
         help_text='Пусто — все классы школы',
     )
-    day = models.CharField(max_length=20, verbose_name='День недели')
+    day = models.CharField(max_length=20, choices=DAY_CHOICES, verbose_name='День недели')
     change_type = models.CharField(
         max_length=20,
         choices=CHANGE_TYPES,
-        default='updated',
+        default=CHANGE_UPDATED,
         verbose_name='Тип изменения',
     )
-    notified = models.BooleanField(
-        default=False,
-        verbose_name='Уведомление отправлено',
-    )
+    notified = models.BooleanField(default=False, verbose_name='Уведомление отправлено')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -278,21 +343,16 @@ class ScheduleChange(models.Model):
 
     def __str__(self):
         klass = f' [{self.class_name}]' if self.class_name else ''
-        return f'{self.school.name}{klass} — {self.get_day_display_display()} ({self.change_type})'
+        return f'{self.school.name}{klass} — {self.get_day_display()} ({self.get_change_type_display()})'
 
-    def get_day_display_display(self):
-        return dict([
-            ('monday', 'Понедельник'),
-            ('tuesday', 'Вторник'),
-            ('wednesday', 'Среда'),
-            ('thursday', 'Четверг'),
-            ('friday', 'Пятница'),
-            ('saturday', 'Суббота'),
-        ]).get(self.day, self.day)
 
+# ─────────────────────────────────────────────────────────────
+# Справочники
+# ─────────────────────────────────────────────────────────────
 
 class Subject(models.Model):
     """Справочник учебных предметов."""
+
     name = models.CharField(
         max_length=100,
         unique=True,
@@ -304,10 +364,7 @@ class Subject(models.Model):
         verbose_name='Сокращение',
         help_text='Например: МАТЕМ, РУСС ЯЗ, ФИЗ-РА',
     )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Активен',
-    )
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -321,13 +378,20 @@ class Subject(models.Model):
 
 class Classroom(models.Model):
     """Справочник кабинетов."""
+
+    ROOM_REGULAR = ''
+    ROOM_PRACTICE = 'п'
+    ROOM_EXAM = 'э'
+    ROOM_BASIC = 'б'
+    ROOM_GYM = 'спорт'
+    ROOM_POOL = 'бассейн'
     ROOM_TYPES = [
-        ('', 'Обычный'),
-        ('п', 'Практика'),
-        ('э', 'Экзамен'),
-        ('б', 'Базовый'),
-        ('спорт', 'Спортзал'),
-        ('бассейн', 'Бассейн'),
+        (ROOM_REGULAR, 'Обычный'),
+        (ROOM_PRACTICE, 'Практика'),
+        (ROOM_EXAM, 'Экзамен'),
+        (ROOM_BASIC, 'Базовый'),
+        (ROOM_GYM, 'Спортзал'),
+        (ROOM_POOL, 'Бассейн'),
     ]
 
     number = models.CharField(
@@ -340,18 +404,11 @@ class Classroom(models.Model):
         max_length=20,
         choices=ROOM_TYPES,
         blank=True,
-        default='',
+        default=ROOM_REGULAR,
         verbose_name='Тип кабинета',
     )
-    building = models.CharField(
-        max_length=100,
-        blank=True,
-        verbose_name='Корпус/здание',
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Активен',
-    )
+    building = models.CharField(max_length=100, blank=True, verbose_name='Корпус/здание')
+    is_active = models.BooleanField(default=True, verbose_name='Активен')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

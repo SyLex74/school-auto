@@ -1,6 +1,5 @@
 # bot.py
 import os
-import django
 import json
 import re
 import time
@@ -11,34 +10,28 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Загружаем .env до django.setup(), чтобы переменные были доступны
 load_dotenv(Path(__file__).resolve().parent / '.env')
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_schedule.settings')
-django.setup()
 
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
 
-from django.conf import settings as django_settings
-from django.db import close_old_connections
-
-from cities_light.models import Region, City
-from schedule_app.models import School, SavedSchedule, VkUser, ScheduleChange
-from schedule_app.forms import russian_name
+from api_client import SiteApi, ApiError
 
 
 # ==================== НАСТРОЙКИ ====================
 
 VK_TOKEN = os.environ['VK_TOKEN']
 GROUP_ID = int(os.environ['VK_GROUP_ID'])
+SITE_URL = os.environ['SITE_URL']
+BOT_API_KEY = os.environ['BOT_API_KEY']
+COMMUNITY_LINK = os.environ.get('COMMUNITY_LINK', '')
 
-SITE_URL = django_settings.SITE_URL
-COMMUNITY_LINK = django_settings.COMMUNITY_LINK
 PAGE_SIZE = 8
 NOTIFY_INTERVAL = 120
+
+api = SiteApi(SITE_URL, BOT_API_KEY)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,7 +50,7 @@ DAY_NAMES = {
 }
 DAY_ORDER = list(DAY_NAMES.keys())
 
-LESSON_TIMES = getattr(django_settings, 'LESSON_TIMES', [
+LESSON_TIMES = [
     ('08:00', '08:45'),
     ('08:55', '09:40'),
     ('09:50', '10:35'),
@@ -66,7 +59,7 @@ LESSON_TIMES = getattr(django_settings, 'LESSON_TIMES', [
     ('12:45', '13:30'),
     ('13:40', '14:25'),
     ('14:35', '15:20'),
-])
+]
 
 
 # ==================== СОСТОЯНИЯ ====================
@@ -86,19 +79,22 @@ def get_pending(vk_id):
     return _pending.get(vk_id)
 
 
-# ==================== VkUser ====================
+# ==================== ПРОФИЛЬ (через API) ====================
 
-def get_vk_user(vk_id):
-    user, _ = VkUser.objects.get_or_create(vk_id=vk_id)
-    return user
-
-
-def reset_vk_user(vk_id):
-    VkUser.objects.filter(vk_id=vk_id).delete()
+def get_profile(vk_id):
+    return api.get_user(vk_id)
 
 
-def is_profile_complete(u):
-    return bool(u.region and u.city and u.school and u.class_name)
+def update_profile(vk_id, **patch):
+    return api.upsert_user(vk_id, patch)
+
+
+def reset_profile(vk_id):
+    api.delete_user(vk_id)
+
+
+def is_profile_complete(profile):
+    return bool(profile and profile.get('is_complete'))
 
 
 # ==================== УТИЛИТЫ ====================
@@ -114,81 +110,23 @@ def _lesson_time_for_index(index):
 
 
 def _today_day_key():
-    """Возвращает ключ сегодняшнего дня (monday..saturday) или None (вс)."""
-    today_idx = datetime.date.today().weekday()
-    if today_idx >= len(DAY_ORDER):
+    idx = datetime.date.today().weekday()
+    if idx >= len(DAY_ORDER):
         return None
-    return DAY_ORDER[today_idx]
+    return DAY_ORDER[idx]
 
 
 def _is_lesson_past(index, day, now=None):
-    """Прошёл ли урок № index в указанный день.
-
-    Если day — не сегодня, всегда возвращает False.
-    """
     if day is None:
         return False
-    today = _today_day_key()
-    if today != day:
+    if _today_day_key() != day:
         return False
-
     if now is None:
         now = datetime.datetime.now()
-
     _, end = _lesson_time_for_index(index)
     if not end:
         return False
-
     return now.strftime('%H:%M') > end
-
-
-# ==================== ПОИСК ====================
-
-def _matches(obj, query):
-    q = query.lower().strip()
-    if not q:
-        return False
-    if q in obj.name.lower():
-        return True
-    for alt in (obj.alternate_names or '').split(','):
-        if q in alt.strip().lower():
-            return True
-    return False
-
-
-def search_regions(query, limit=None):
-    result = []
-    for r in Region.objects.filter(country__code2='RU').only(
-        'id', 'name', 'alternate_names'
-    ).order_by('name'):
-        if _matches(r, query):
-            result.append(r)
-            if limit and len(result) >= limit:
-                break
-    return result
-
-
-def search_cities(query, region_id, limit=None):
-    result = []
-    for c in City.objects.filter(region_id=region_id, country__code2='RU').only(
-        'id', 'name', 'alternate_names'
-    ).order_by('name'):
-        if _matches(c, query):
-            result.append(c)
-            if limit and len(result) >= limit:
-                break
-    return result
-
-
-def search_schools(query, city_id, limit=None):
-    q = query.lower().strip()
-    result = []
-    for s in School.objects.filter(city_id=city_id).only('id', 'name').order_by('name'):
-        if q in s.name.lower():
-            result.append(s)
-            if limit and len(result) >= limit:
-                break
-    return result
 
 
 def parse_class(text):
@@ -201,7 +139,6 @@ def parse_class(text):
 # ==================== КЛАВИАТУРЫ ====================
 
 def kb_main():
-    """Главное меню."""
     kb = VkKeyboard(one_time=False)
     kb.add_button('Расписание', color=VkKeyboardColor.PRIMARY)
     kb.add_line()
@@ -220,7 +157,6 @@ def kb_cancel():
 
 
 def kb_days():
-    """Кнопки со всеми днями недели (Пн–Сб)."""
     kb = VkKeyboard(one_time=False)
     for i, day in enumerate(DAY_ORDER):
         kb.add_button(DAY_NAMES[day], payload={'day': day},
@@ -248,23 +184,20 @@ def kb_profile():
     return kb
 
 
-def kb_settings(u):
-    """Настройки бота — переключатели."""
+def kb_settings(profile):
     kb = VkKeyboard(one_time=False)
-
-    bell_label = 'Звонки: вкл' if u.show_bell_times else 'Звонки: выкл'
-    strike_label = 'Зачёркивать: вкл' if u.strike_past_lessons else 'Зачёркивать: выкл'
-
+    bell_on = bool(profile.get('show_bell_times', True))
+    strike_on = bool(profile.get('strike_past_lessons', True))
     kb.add_button(
-        bell_label,
+        'Звонки: вкл' if bell_on else 'Звонки: выкл',
         payload={'action': 'toggle_bells'},
-        color=VkKeyboardColor.POSITIVE if u.show_bell_times else VkKeyboardColor.SECONDARY,
+        color=VkKeyboardColor.POSITIVE if bell_on else VkKeyboardColor.SECONDARY,
     )
     kb.add_line()
     kb.add_button(
-        strike_label,
+        'Зачёркивать: вкл' if strike_on else 'Зачёркивать: выкл',
         payload={'action': 'toggle_strike'},
-        color=VkKeyboardColor.POSITIVE if u.strike_past_lessons else VkKeyboardColor.SECONDARY,
+        color=VkKeyboardColor.POSITIVE if strike_on else VkKeyboardColor.SECONDARY,
     )
     kb.add_line()
     kb.add_button('В меню', color=VkKeyboardColor.PRIMARY)
@@ -319,24 +252,25 @@ def send(vk, user_id, text, keyboard=None):
         log.exception('Ошибка отправки сообщения: %s', e)
 
 
-# ==================== ГЛАВНЫЕ ОБРАБОТЧИКИ ====================
+# ==================== СТАРТ / ПРИГЛАШЕНИЕ ====================
 
 def handle_start(vk, user_id):
-    user = get_vk_user(user_id)
+    profile = get_profile(user_id)
 
-    if is_profile_complete(user):
+    if is_profile_complete(profile):
         send(
             vk, user_id,
             f'С возвращением!\n\n'
-            f'Школа: {user.school.name}\n'
-            f'Класс: {user.class_name}\n\n'
+            f'Школа: {profile["school_name"]}\n'
+            f'Класс: {profile["class_name"]}\n\n'
             'Выбери действие:',
             kb_main(),
         )
         return
 
-    reset_vk_user(user_id)
-    get_vk_user(user_id)
+    reset_profile(user_id)
+    update_profile(user_id, region_id=None, city_id=None,
+                   school_id=None, class_name='')
     send(
         vk, user_id,
         'Привет! Я бот "ШкольноеРасписание".\n\n'
@@ -361,10 +295,9 @@ def handle_invite(vk, user_id):
 # ==================== НАСТРОЙКИ ====================
 
 def handle_settings(vk, user_id):
-    u = get_vk_user(user_id)
-    bell_state = 'включено' if u.show_bell_times else 'выключено'
-    strike_state = 'включено' if u.strike_past_lessons else 'выключено'
-
+    profile = get_profile(user_id) or {}
+    bell_state = 'включено' if profile.get('show_bell_times', True) else 'выключено'
+    strike_state = 'включено' if profile.get('strike_past_lessons', True) else 'выключено'
     send(
         vk, user_id,
         'НАСТРОЙКИ\n'
@@ -374,24 +307,26 @@ def handle_settings(vk, user_id):
         '━━━━━━━━━━━━━━━\n'
         'Нажми на кнопку, чтобы переключить.\n\n'
         'Зачёркивание работает только для расписания на сегодня.',
-        kb_settings(u),
+        kb_settings(profile),
     )
 
 
 def handle_toggle_bells(vk, user_id):
-    u = get_vk_user(user_id)
-    u.show_bell_times = not u.show_bell_times
-    u.save()
-    state = 'включено' if u.show_bell_times else 'выключено'
-    send(vk, user_id, f'Звонки: {state}', kb_settings(u))
+    profile = get_profile(user_id) or {}
+    new_val = not profile.get('show_bell_times', True)
+    profile = update_profile(user_id, show_bell_times=new_val)
+    send(vk, user_id,
+         f'Звонки: {"включено" if new_val else "выключено"}',
+         kb_settings(profile))
 
 
 def handle_toggle_strike(vk, user_id):
-    u = get_vk_user(user_id)
-    u.strike_past_lessons = not u.strike_past_lessons
-    u.save()
-    state = 'включено' if u.strike_past_lessons else 'выключено'
-    send(vk, user_id, f'Зачёркивание прошедших уроков: {state}', kb_settings(u))
+    profile = get_profile(user_id) or {}
+    new_val = not profile.get('strike_past_lessons', True)
+    profile = update_profile(user_id, strike_past_lessons=new_val)
+    send(vk, user_id,
+         f'Зачёркивание прошедших уроков: {"включено" if new_val else "выключено"}',
+         kb_settings(profile))
 
 
 # ==================== МАСТЕР НАСТРОЙКИ ====================
@@ -409,118 +344,91 @@ def begin_setup(vk, user_id):
 # ---------- РЕГИОН ----------
 
 def step_input_region(vk, user_id, text):
-    matches = search_regions(text, limit=50)
+    matches = api.search_regions(text, limit=50)
     if not matches:
-        send(
-            vk, user_id,
-            'Регион не найден.\n\nПопробуй другое название или нажми "Отмена".',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             'Регион не найден.\n\nПопробуй другое название или нажми "Отмена".',
+             kb_cancel())
         return
 
     if len(matches) == 1:
-        apply_region(vk, user_id, matches[0], next_step='city')
+        apply_region(vk, user_id, matches[0])
         return
 
-    items = [{'id': r.id, 'label': russian_name(r)} for r in matches]
+    items = [{'id': r['id'], 'label': r['display_name']} for r in matches]
     _render_options(vk, user_id, 'Выбери регион:', items, 'pick_region',
                     next_step='city')
 
 
-def apply_region(vk, user_id, region, next_step='city', prompt_after=None):
-    u = get_vk_user(user_id)
-    u.region = region
-
-    if u.city and u.city.region_id != region.id:
-        u.city = None
-        u.school = None
-        u.class_name = ''
-    u.save()
+def apply_region(vk, user_id, region):
+    update_profile(vk_id=user_id,
+                   region_id=region['id'],
+                   city_id=None, school_id=None, class_name='')
     pop_pending(user_id)
 
-    if prompt_after:
-        send(vk, user_id, prompt_after, kb_main())
-        return
-
-    send(
-        vk, user_id,
-        f'Регион: {russian_name(region)}\n\n'
-        'Шаг 2 из 4. Введи город (можно часть).',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Регион: {region["display_name"]}\n\n'
+         'Шаг 2 из 4. Введи город (можно часть).',
+         kb_cancel())
     set_pending(user_id, 'input_city')
 
 
 # ---------- ГОРОД ----------
 
 def step_input_city(vk, user_id, text):
-    u = get_vk_user(user_id)
-    if not u.region:
+    profile = get_profile(user_id) or {}
+    if not profile.get('region_id'):
         send(vk, user_id, 'Сначала выбери регион.', kb_cancel())
         set_pending(user_id, 'input_region')
         return
 
-    matches = search_cities(text, u.region_id, limit=50)
+    matches = api.search_cities(profile['region_id'], text, limit=50)
     if not matches:
-        send(
-            vk, user_id,
-            f'Город не найден в регионе "{russian_name(u.region)}".\n\n'
-            'Попробуй другое название или нажми "Отмена".',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             f'Город не найден в регионе "{profile.get("region_name")}".\n\n'
+             'Попробуй другое название или нажми "Отмена".',
+             kb_cancel())
         return
 
     if len(matches) == 1:
-        apply_city(vk, user_id, matches[0], next_step='school')
+        apply_city(vk, user_id, matches[0])
         return
 
-    items = [{'id': c.id, 'label': russian_name(c)} for c in matches]
+    items = [{'id': c['id'], 'label': c['display_name']} for c in matches]
     _render_options(vk, user_id, 'Выбери город:', items, 'pick_city',
                     next_step='school')
 
 
-def apply_city(vk, user_id, city, next_step='school', prompt_after=None):
-    u = get_vk_user(user_id)
-    u.city = city
-
-    if u.school and u.school.city_id != city.id:
-        u.school = None
-        u.class_name = ''
-    u.save()
+def apply_city(vk, user_id, city):
+    update_profile(vk_id=user_id,
+                   city_id=city['id'],
+                   school_id=None, class_name='')
     pop_pending(user_id)
 
-    if prompt_after:
-        send(vk, user_id, prompt_after, kb_main())
-        return
-
-    send(
-        vk, user_id,
-        f'Город: {russian_name(city)}\n\n'
-        'Шаг 3 из 4. Введи название или номер школы (можно часть).\n'
-        'Например: "14", "СОШ 4", "Гимназия".',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Город: {city["display_name"]}\n\n'
+         'Шаг 3 из 4. Введи название или номер школы (можно часть).\n'
+         'Например: "14", "СОШ 4", "Гимназия".',
+         kb_cancel())
     set_pending(user_id, 'input_school')
 
 
 # ---------- ШКОЛА ----------
 
 def step_input_school(vk, user_id, text):
-    u = get_vk_user(user_id)
-    if not u.city:
+    profile = get_profile(user_id) or {}
+    if not profile.get('city_id'):
         send(vk, user_id, 'Сначала выбери город.', kb_cancel())
         set_pending(user_id, 'input_city')
         return
 
-    matches = search_schools(text, u.city_id, limit=20)
+    matches = api.search_schools(profile['city_id'], text, limit=20)
     if not matches:
-        send(
-            vk, user_id,
-            f'Школа не найдена в городе "{russian_name(u.city)}".\n\n'
-            'Попробуй другое название или нажми "Отмена".\n'
-            'Например: "14", "СОШ 4", "Гимназия".',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             f'Школа не найдена в городе "{profile.get("city_name")}".\n\n'
+             'Попробуй другое название или нажми "Отмена".\n'
+             'Например: "14", "СОШ 4", "Гимназия".',
+             kb_cancel())
         return
 
     if len(matches) == 1:
@@ -530,24 +438,16 @@ def step_input_school(vk, user_id, text):
     show_school_candidates(vk, user_id, matches)
 
 
-def apply_school(vk, user_id, school, prompt_after=None):
-    u = get_vk_user(user_id)
-    u.school = school
-    u.class_name = ''
-    u.save()
+def apply_school(vk, user_id, school):
+    update_profile(vk_id=user_id,
+                   school_id=school['id'], class_name='')
     pop_pending(user_id)
 
-    if prompt_after:
-        send(vk, user_id, prompt_after, kb_main())
-        return
-
-    send(
-        vk, user_id,
-        f'Школа: {school.name}\n\n'
-        'Шаг 4 из 4. Введи свой класс.\n'
-        'Например: 5А, 11Б, 9В.',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Школа: {school["name"]}\n\n'
+         'Шаг 4 из 4. Введи свой класс.\n'
+         'Например: 5А, 11Б, 9В.',
+         kb_cancel())
     set_pending(user_id, 'input_class')
 
 
@@ -555,31 +455,27 @@ def show_school_candidates(vk, user_id, schools, page=0):
     total = len(schools)
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     page = max(0, min(page, total_pages - 1))
-
     start = page * PAGE_SIZE
-    end = start + PAGE_SIZE
-    chunk = schools[start:end]
+    chunk = schools[start:start + PAGE_SIZE]
 
-    u = get_vk_user(user_id)
+    profile = get_profile(user_id) or {}
+    city_name = profile.get('city_name') or '—'
+
     lines = [
         'НАЙДЕННЫЕ ШКОЛЫ',
         '━━━━━━━━━━━━━━━',
-        f'Город: {russian_name(u.city) if u.city else "—"}',
+        f'Город: {city_name}',
         '',
     ]
     for i, s in enumerate(chunk, start=start + 1):
-        lines.append(f'{i}. {s.name}')
-    lines.append('')
-    lines.append('━━━━━━━━━━━━━━━')
-    lines.append(f'Страница {page + 1} из {total_pages}')
-    lines.append('')
-    lines.append('Ответь номером, чтобы выбрать школу.')
+        lines.append(f'{i}. {s["name"]}')
+    lines += ['', '━━━━━━━━━━━━━━━',
+              f'Страница {page + 1} из {total_pages}',
+              '', 'Ответь номером, чтобы выбрать школу.']
 
-    set_pending(
-        user_id, 'pick_school',
-        items=[{'id': s.id, 'label': s.name} for s in schools],
-        page=page, total_pages=total_pages,
-    )
+    set_pending(user_id, 'pick_school',
+                items=[{'id': s['id'], 'label': s['name']} for s in schools],
+                page=page, total_pages=total_pages)
 
     kb = VkKeyboard(one_time=False)
     if page > 0:
@@ -601,323 +497,244 @@ def show_school_candidates(vk, user_id, schools, page=0):
 def step_input_class(vk, user_id, text):
     klass = parse_class(text)
     if not klass:
-        send(
-            vk, user_id,
-            'Неверный формат класса.\n\n'
-            'Введи номер и букву, например: 5А, 11Б, 9В.',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             'Неверный формат класса.\n\n'
+             'Введи номер и букву, например: 5А, 11Б, 9В.',
+             kb_cancel())
         return
 
-    u = get_vk_user(user_id)
-    u.class_name = klass
-    u.save()
+    profile = update_profile(user_id, class_name=klass)
     pop_pending(user_id)
 
-    if is_profile_complete(u):
-        send(
-            vk, user_id,
-            'ПРОФИЛЬ УСПЕШНО СОЗДАН!\n'
-            '━━━━━━━━━━━━━━━\n\n'
-            f'{_profile_summary(u)}\n\n'
-            '━━━━━━━━━━━━━━━\n'
-            'Теперь можно смотреть расписание.',
-            kb_main(),
-        )
+    if is_profile_complete(profile):
+        send(vk, user_id,
+             'ПРОФИЛЬ УСПЕШНО СОЗДАН!\n'
+             '━━━━━━━━━━━━━━━\n\n'
+             f'{_profile_summary(profile)}\n\n'
+             '━━━━━━━━━━━━━━━\n'
+             'Теперь можно смотреть расписание.',
+             kb_main())
     else:
-        send(
-            vk, user_id,
-            f'Класс: {klass}\n\n'
-            'Что-то пошло не так — заполним профиль заново.',
-            kb_main(),
-        )
+        send(vk, user_id,
+             f'Класс: {klass}\n\n'
+             'Что-то пошло не так — заполним профиль заново.',
+             kb_main())
         begin_setup(vk, user_id)
 
 
 # ==================== ПРОФИЛЬ ====================
 
-def _profile_summary(u):
-    region = russian_name(u.region) if u.region else '—'
-    city = russian_name(u.city) if u.city else '—'
-    school = u.school.name if u.school else '—'
-    klass = u.class_name or '—'
+def _profile_summary(profile):
     return (
-        f'Регион: {region}\n'
-        f'Город: {city}\n'
-        f'Школа: {school}\n'
-        f'Класс: {klass}'
+        f'Регион: {profile.get("region_name") or "—"}\n'
+        f'Город: {profile.get("city_name") or "—"}\n'
+        f'Школа: {profile.get("school_name") or "—"}\n'
+        f'Класс: {profile.get("class_name") or "—"}'
     )
 
 
 def handle_profile(vk, user_id):
-    u = get_vk_user(user_id)
-    send(
-        vk, user_id,
-        'ПРОФИЛЬ\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'{_profile_summary(u)}\n\n'
-        '━━━━━━━━━━━━━━━\n'
-        'Что хочешь сделать?',
-        kb_profile(),
-    )
+    profile = get_profile(user_id) or {}
+    send(vk, user_id,
+         'ПРОФИЛЬ\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'{_profile_summary(profile)}\n\n'
+         '━━━━━━━━━━━━━━━\n'
+         'Что хочешь сделать?',
+         kb_profile())
 
 
 # ==================== ИЗМЕНЕНИЕ ПРОФИЛЯ ====================
 
 def handle_edit_menu(vk, user_id):
-    u = get_vk_user(user_id)
-    send(
-        vk, user_id,
-        'ЧТО ИЗМЕНИТЬ?\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'{_profile_summary(u)}\n\n'
-        '━━━━━━━━━━━━━━━\n'
-        'Введи номер пункта (1–4) или нажми кнопку:',
-        kb_edit_what(),
-    )
+    profile = get_profile(user_id) or {}
+    send(vk, user_id,
+         'ЧТО ИЗМЕНИТЬ?\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'{_profile_summary(profile)}\n\n'
+         '━━━━━━━━━━━━━━━\n'
+         'Введи номер пункта (1–4) или нажми кнопку:',
+         kb_edit_what())
     set_pending(user_id, 'edit_choose')
 
 
 def start_edit_region(vk, user_id):
-    send(
-        vk, user_id,
-        'ИЗМЕНЕНИЕ РЕГИОНА\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        'После смены региона нужно будет заново указать город, школу и класс.\n\n'
-        'Введи название нового региона (можно часть).',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         'ИЗМЕНЕНИЕ РЕГИОНА\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         'После смены региона нужно будет заново указать город, школу и класс.\n\n'
+         'Введи название нового региона (можно часть).',
+         kb_cancel())
     set_pending(user_id, 'edit_region')
 
 
 def start_edit_city(vk, user_id):
-    u = get_vk_user(user_id)
-    if not u.region:
+    profile = get_profile(user_id) or {}
+    if not profile.get('region_id'):
         send(vk, user_id, 'Сначала выбери регион.', kb_main())
         return
-    send(
-        vk, user_id,
-        'ИЗМЕНЕНИЕ ГОРОДА\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'Регион: {russian_name(u.region)}\n\n'
-        'После смены города нужно будет заново указать школу и класс.\n\n'
-        'Введи название нового города (можно часть).',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         'ИЗМЕНЕНИЕ ГОРОДА\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'Регион: {profile.get("region_name")}\n\n'
+         'После смены города нужно будет заново указать школу и класс.\n\n'
+         'Введи название нового города (можно часть).',
+         kb_cancel())
     set_pending(user_id, 'edit_city')
 
 
 def start_edit_school(vk, user_id):
-    u = get_vk_user(user_id)
-    if not u.city:
+    profile = get_profile(user_id) or {}
+    if not profile.get('city_id'):
         send(vk, user_id, 'Сначала выбери город.', kb_main())
         return
-    send(
-        vk, user_id,
-        'ИЗМЕНЕНИЕ ШКОЛЫ\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'Город: {russian_name(u.city)}\n\n'
-        'После смены школы нужно будет заново указать класс.\n\n'
-        'Введи название или номер новой школы (можно часть).',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         'ИЗМЕНЕНИЕ ШКОЛЫ\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'Город: {profile.get("city_name")}\n\n'
+         'После смены школы нужно будет заново указать класс.\n\n'
+         'Введи название или номер новой школы (можно часть).',
+         kb_cancel())
     set_pending(user_id, 'edit_school')
 
 
 def start_edit_class(vk, user_id):
-    u = get_vk_user(user_id)
-    if not u.school:
+    profile = get_profile(user_id) or {}
+    if not profile.get('school_id'):
         send(vk, user_id, 'Сначала выбери школу.', kb_main())
         return
-    send(
-        vk, user_id,
-        'ИЗМЕНЕНИЕ КЛАССА\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'Школа: {u.school.name}\n'
-        f'Сейчас: {u.class_name or "—"}\n\n'
-        'Введи новый класс, например: 5А, 11Б, 9В.',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         'ИЗМЕНЕНИЕ КЛАССА\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'Школа: {profile.get("school_name")}\n'
+         f'Сейчас: {profile.get("class_name") or "—"}\n\n'
+         'Введи новый класс, например: 5А, 11Б, 9В.',
+         kb_cancel())
     set_pending(user_id, 'edit_class')
 
 
 # ---------- Шаги изменения ----------
 
 def step_edit_region(vk, user_id, text):
-    matches = search_regions(text, limit=50)
+    matches = api.search_regions(text, limit=50)
     if not matches:
         send(vk, user_id, 'Регион не найден. Попробуй другое название.', kb_cancel())
         return
-
     if len(matches) == 1:
         apply_edit_region(vk, user_id, matches[0])
         return
-
-    items = [{'id': r.id, 'label': russian_name(r)} for r in matches]
+    items = [{'id': r['id'], 'label': r['display_name']} for r in matches]
     _render_options(vk, user_id, 'Выбери регион:', items, 'pick_region_edit')
 
 
 def apply_edit_region(vk, user_id, region):
-    u = get_vk_user(user_id)
-    u.region = region
-    u.city = None
-    u.school = None
-    u.class_name = ''
-    u.save()
+    update_profile(vk_id=user_id,
+                   region_id=region['id'],
+                   city_id=None, school_id=None, class_name='')
     pop_pending(user_id)
-
-    send(
-        vk, user_id,
-        f'Регион изменён: {russian_name(region)}\n\n'
-        'Теперь укажи город.',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Регион изменён: {region["display_name"]}\n\nТеперь укажи город.',
+         kb_cancel())
     set_pending(user_id, 'edit_city')
 
 
 def step_edit_city(vk, user_id, text):
-    u = get_vk_user(user_id)
-    if not u.region:
+    profile = get_profile(user_id) or {}
+    if not profile.get('region_id'):
         send(vk, user_id, 'Сначала выбери регион.', kb_main())
         return
-
-    matches = search_cities(text, u.region_id, limit=50)
+    matches = api.search_cities(profile['region_id'], text, limit=50)
     if not matches:
-        send(
-            vk, user_id,
-            f'Город не найден в регионе "{russian_name(u.region)}".',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             f'Город не найден в регионе "{profile.get("region_name")}".',
+             kb_cancel())
         return
-
     if len(matches) == 1:
         apply_edit_city(vk, user_id, matches[0])
         return
-
-    items = [{'id': c.id, 'label': russian_name(c)} for c in matches]
+    items = [{'id': c['id'], 'label': c['display_name']} for c in matches]
     _render_options(vk, user_id, 'Выбери город:', items, 'pick_city_edit')
 
 
 def apply_edit_city(vk, user_id, city):
-    u = get_vk_user(user_id)
-    u.city = city
-    u.school = None
-    u.class_name = ''
-    u.save()
+    update_profile(vk_id=user_id,
+                   city_id=city['id'],
+                   school_id=None, class_name='')
     pop_pending(user_id)
-
-    send(
-        vk, user_id,
-        f'Город изменён: {russian_name(city)}\n\n'
-        'Теперь укажи школу.',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Город изменён: {city["display_name"]}\n\nТеперь укажи школу.',
+         kb_cancel())
     set_pending(user_id, 'edit_school')
 
 
 def step_edit_school(vk, user_id, text):
-    u = get_vk_user(user_id)
-    if not u.city:
+    profile = get_profile(user_id) or {}
+    if not profile.get('city_id'):
         send(vk, user_id, 'Сначала выбери город.', kb_main())
         return
-
-    matches = search_schools(text, u.city_id, limit=20)
+    matches = api.search_schools(profile['city_id'], text, limit=20)
     if not matches:
-        send(
-            vk, user_id,
-            f'Школа не найдена в городе "{russian_name(u.city)}".',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             f'Школа не найдена в городе "{profile.get("city_name")}".',
+             kb_cancel())
         return
-
     if len(matches) == 1:
         apply_edit_school(vk, user_id, matches[0])
         return
-
     show_school_candidates(vk, user_id, matches)
 
 
 def apply_edit_school(vk, user_id, school):
-    u = get_vk_user(user_id)
-    u.school = school
-    u.class_name = ''
-    u.save()
+    update_profile(vk_id=user_id, school_id=school['id'], class_name='')
     pop_pending(user_id)
-
-    send(
-        vk, user_id,
-        f'Школа изменена: {school.name}\n\n'
-        'Теперь укажи класс.',
-        kb_cancel(),
-    )
+    send(vk, user_id,
+         f'Школа изменена: {school["name"]}\n\nТеперь укажи класс.',
+         kb_cancel())
     set_pending(user_id, 'edit_class')
 
 
 def step_edit_class(vk, user_id, text):
     klass = parse_class(text)
     if not klass:
-        send(
-            vk, user_id,
-            'Неверный формат класса.\n\n'
-            'Введи номер и букву, например: 5А, 11Б, 9В.',
-            kb_cancel(),
-        )
+        send(vk, user_id,
+             'Неверный формат класса.\n\n'
+             'Введи номер и букву, например: 5А, 11Б, 9В.',
+             kb_cancel())
         return
-
-    u = get_vk_user(user_id)
-    u.class_name = klass
-    u.save()
+    profile = update_profile(user_id, class_name=klass)
     pop_pending(user_id)
-
-    send(
-        vk, user_id,
-        f'Класс изменён: {klass}\n\n'
-        f'{_profile_summary(u)}',
-        kb_main(),
-    )
+    send(vk, user_id,
+         f'Класс изменён: {klass}\n\n{_profile_summary(profile)}',
+         kb_main())
 
 
 # ==================== СБРОС ====================
 
 def handle_reset_confirm(vk, user_id):
-    send(
-        vk, user_id,
-        'Вы точно хотите удалить аккаунт?\n\n'
-        'Все данные профиля будут удалены.',
-        kb_confirm_reset(),
-    )
+    send(vk, user_id,
+         'Вы точно хотите удалить аккаунт?\n\n'
+         'Все данные профиля будут удалены.',
+         kb_confirm_reset())
     set_pending(user_id, 'confirm_reset')
 
 
 def do_reset(vk, user_id):
-    reset_vk_user(user_id)
-    get_vk_user(user_id)
+    reset_profile(user_id)
+    update_profile(user_id, region_id=None, city_id=None,
+                   school_id=None, class_name='')
     pop_pending(user_id)
-    send(
-        vk, user_id,
-        'Аккаунт удалён.\n\n'
-        'Заполним профиль заново.',
-    )
+    send(vk, user_id, 'Аккаунт удалён.\n\nЗаполним профиль заново.')
     begin_setup(vk, user_id)
 
 
 # ==================== РАСПИСАНИЕ ====================
 
-def _load_schedules(school_id):
-    return list(
-        SavedSchedule.objects
-        .filter(user__profile__school_id=school_id)
-        .select_related('user__profile')
-        .only('id', 'day', 'schedule_data', 'user__profile__school_id')
-    )
-
-
 def _collect_lessons(schedules, day, class_name):
     best = []
     for sched in schedules:
-        if sched.day != day:
+        if sched['day'] != day:
             continue
-        for class_data in sched.schedule_data:
+        for class_data in (sched.get('schedule_data') or []):
             if (class_data.get('name') or '').upper() != class_name:
                 continue
             lessons = class_data.get('lessons') or []
@@ -927,11 +744,6 @@ def _collect_lessons(schedules, day, class_name):
 
 
 def _format_lesson(index, lesson, day, now, show_bells, strike_enabled):
-    """Форматирует урок.
-
-    show_bells — показывать ли время звонков;
-    strike_enabled — можно ли зачёркивать (учитывает настройку и день).
-    """
     subject = (lesson.get('subject') or '').strip()
     if not subject or subject == '--|--':
         return None
@@ -947,37 +759,29 @@ def _format_lesson(index, lesson, day, now, show_bells, strike_enabled):
     cab_str = f'  ·  каб. {", ".join(cabs)}' if cabs else ''
 
     line = f'{index}. {time_str}{subject}{cab_str}'
-
     if strike_enabled and _is_lesson_past(index, day, now):
         line = strikethrough(line)
-
     return line
 
 
-def _format_day_schedule(user, schedules, day):
-    lessons = _collect_lessons(schedules, day, user.class_name)
+def _format_day_schedule(profile, schedules, day):
+    lessons = _collect_lessons(schedules, day, profile['class_name'])
     now = datetime.datetime.now()
 
-    show_bells = bool(getattr(user, 'show_bell_times', True))
-    # Зачёркиваем только если настройка включена И день — сегодняшний
+    show_bells = bool(profile.get('show_bell_times', True))
     today = _today_day_key()
-    strike_enabled = (
-        bool(getattr(user, 'strike_past_lessons', True))
-        and today == day
-    )
+    strike_enabled = bool(profile.get('strike_past_lessons', True)) and today == day
 
     lines = [
         'РАСПИСАНИЕ',
         '━━━━━━━━━━━━━━━',
-        f'Школа: {user.school.name}',
-        f'Класс: {user.class_name}',
+        f'Школа: {profile.get("school_name")}',
+        f'Класс: {profile.get("class_name")}',
         f'День: {DAY_NAMES[day]}',
     ]
     if today == day:
         lines.append('(сегодня)')
-    lines.append('')
-    lines.append('━━━━━━━━━━━━━━━')
-    lines.append('')
+    lines += ['', '━━━━━━━━━━━━━━━', '']
 
     if not lessons:
         lines.append('Уроков нет.')
@@ -985,52 +789,41 @@ def _format_day_schedule(user, schedules, day):
 
     idx = 0
     for lesson in lessons:
-        line = _format_lesson(
-            idx + 1, lesson, day, now,
-            show_bells=show_bells,
-            strike_enabled=strike_enabled,
-        )
+        line = _format_lesson(idx + 1, lesson, day, now,
+                              show_bells=show_bells,
+                              strike_enabled=strike_enabled)
         if line is None:
             continue
         idx += 1
         lines.append(line)
-
     if idx == 0:
         lines.append('Уроков нет.')
-
     return '\n'.join(lines)
 
 
 def handle_schedule_menu(vk, user_id):
-    u = get_vk_user(user_id)
-    if not is_profile_complete(u):
-        send(
-            vk, user_id,
-            'Профиль не заполнен.\n\n'
-            'Нажми "Профиль" → "Изменить", чтобы завершить настройку.',
-            kb_main(),
-        )
+    profile = get_profile(user_id) or {}
+    if not is_profile_complete(profile):
+        send(vk, user_id,
+             'Профиль не заполнен.\n\n'
+             'Нажми "Профиль" → "Изменить", чтобы завершить настройку.',
+             kb_main())
         return
-
-    send(
-        vk, user_id,
-        'ВЫБЕРИ ДЕНЬ\n'
-        '━━━━━━━━━━━━━━━\n\n'
-        f'Школа: {u.school.name}\n'
-        f'Класс: {u.class_name}',
-        kb_days(),
-    )
+    send(vk, user_id,
+         'ВЫБЕРИ ДЕНЬ\n'
+         '━━━━━━━━━━━━━━━\n\n'
+         f'Школа: {profile["school_name"]}\n'
+         f'Класс: {profile["class_name"]}',
+         kb_days())
 
 
 def show_day(vk, user_id, day):
-    u = get_vk_user(user_id)
-    if not is_profile_complete(u):
+    profile = get_profile(user_id) or {}
+    if not is_profile_complete(profile):
         send(vk, user_id, 'Профиль не заполнен.', kb_main())
         return
-
-    schedules = _load_schedules(u.school_id)
-    text = _format_day_schedule(u, schedules, day)
-    send(vk, user_id, text, kb_back())
+    schedules = api.schedules_by_school(profile['school_id'])
+    send(vk, user_id, _format_day_schedule(profile, schedules, day), kb_back())
 
 
 # ==================== ВЫБОР ИЗ СПИСКА ====================
@@ -1039,33 +832,25 @@ def _render_options(vk, user_id, title, items, action_prefix, page=0, next_step=
     total = len(items)
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     page = max(0, min(page, total_pages - 1))
-
     start = page * PAGE_SIZE
-    end = start + PAGE_SIZE
-    chunk = items[start:end]
+    chunk = items[start:start + PAGE_SIZE]
 
-    lines = [f'{title}', '━━━━━━━━━━━━━━━', '']
+    lines = [title, '━━━━━━━━━━━━━━━', '']
     for i, item in enumerate(chunk, start=start + 1):
         lines.append(f'{i}. {item["label"]}')
-    lines.append('')
-    lines.append('━━━━━━━━━━━━━━━')
-    lines.append(f'Страница {page + 1} из {total_pages}')
-    lines.append('')
-    lines.append(f'Ответь номером (1–{total}) или листай кнопками.')
+    lines += ['', '━━━━━━━━━━━━━━━',
+              f'Страница {page + 1} из {total_pages}',
+              '', f'Ответь номером (1–{total}) или листай кнопками.']
 
-    payload_extra = {'items': items, 'page': page, 'total_pages': total_pages}
+    payload = {'items': items, 'page': page, 'total_pages': total_pages}
     if next_step:
-        payload_extra['next_step'] = next_step
-    set_pending(user_id, action_prefix, **payload_extra)
+        payload['next_step'] = next_step
+    set_pending(user_id, action_prefix, **payload)
 
-    has_prev = page > 0
-    has_next = page < total_pages - 1
-
-    send(
-        vk, user_id,
-        '\n'.join(lines),
-        kb_paginated(action_prefix, page, total_pages, has_next=has_next, has_prev=has_prev),
-    )
+    send(vk, user_id, '\n'.join(lines),
+         kb_paginated(action_prefix, page, total_pages,
+                      has_next=page < total_pages - 1,
+                      has_prev=page > 0))
 
 
 # ==================== PAYLOAD ====================
@@ -1078,20 +863,10 @@ def handle_payload(vk, user_id, payload):
             return True
         return False
 
-    if action == 'pick_region_page':
-        return handle_pagination(vk, user_id, 'pick_region', payload.get('page', 0))
-
-    if action == 'pick_city_page':
-        return handle_pagination(vk, user_id, 'pick_city', payload.get('page', 0))
-
-    if action == 'pick_school_page':
-        return handle_pagination(vk, user_id, 'pick_school', payload.get('page', 0))
-
-    if action == 'pick_region_edit_page':
-        return handle_pagination(vk, user_id, 'pick_region_edit', payload.get('page', 0))
-
-    if action == 'pick_city_edit_page':
-        return handle_pagination(vk, user_id, 'pick_city_edit', payload.get('page', 0))
+    if action in ('pick_region_page', 'pick_city_page', 'pick_school_page',
+                  'pick_region_edit_page', 'pick_city_edit_page'):
+        prefix = action[:-5]  # убираем '_page'
+        return handle_pagination(vk, user_id, prefix, payload.get('page', 0))
 
     if action == 'toggle_bells':
         handle_toggle_bells(vk, user_id)
@@ -1109,7 +884,6 @@ def handle_pagination(vk, user_id, action, page):
     if not state or state['action'] != action:
         send(vk, user_id, 'Сессия устарела. Попробуй заново.', kb_main())
         return True
-
     items = state['payload'].get('items', [])
     next_step = state['payload'].get('next_step')
     titles = {
@@ -1119,75 +893,46 @@ def handle_pagination(vk, user_id, action, page):
         'pick_region_edit': 'Выбери регион:',
         'pick_city_edit': 'Выбери город:',
     }
-    _render_options(vk, user_id, titles.get(action, 'Выбери:'), items, action,
-                    page=page, next_step=next_step)
+    _render_options(vk, user_id, titles.get(action, 'Выбери:'),
+                    items, action, page=page, next_step=next_step)
     return True
 
-
-# ==================== ОБРАБОТКА ВЫБОРА НОМЕРА ====================
 
 def _process_number_choice(vk, user_id, action, num, state):
     items = state['payload'].get('items', [])
     if not (1 <= num <= len(items)):
-        send(
-            vk, user_id,
-            f'Такого номера нет. Введи от 1 до {len(items)}.',
-            kb_paginated(action, state['payload'].get('page', 0),
-                         max(1, (len(items) + PAGE_SIZE - 1) // PAGE_SIZE)),
-        )
+        send(vk, user_id, f'Такого номера нет. Введи от 1 до {len(items)}.',
+             kb_paginated(action, state['payload'].get('page', 0),
+                          max(1, (len(items) + PAGE_SIZE - 1) // PAGE_SIZE)))
         return True
 
     item = items[num - 1]
     obj_id = item['id']
+    label = item['label']
 
     if action == 'pick_region':
-        try:
-            region = Region.objects.get(id=obj_id)
-        except Region.DoesNotExist:
-            send(vk, user_id, 'Регион не найден.', kb_main())
-            return True
         pop_pending(user_id)
-        apply_region(vk, user_id, region, next_step='city')
+        apply_region(vk, user_id, {'id': obj_id, 'display_name': label})
         return True
 
     if action == 'pick_city':
-        try:
-            city = City.objects.get(id=obj_id)
-        except City.DoesNotExist:
-            send(vk, user_id, 'Город не найден.', kb_main())
-            return True
         pop_pending(user_id)
-        apply_city(vk, user_id, city, next_step='school')
+        apply_city(vk, user_id, {'id': obj_id, 'display_name': label})
         return True
 
     if action == 'pick_school':
-        try:
-            school = School.objects.get(id=obj_id)
-        except School.DoesNotExist:
-            send(vk, user_id, 'Школа не найдена.', kb_main())
-            return True
         pop_pending(user_id)
-        apply_school(vk, user_id, school)
+        apply_school(vk, user_id, {'id': obj_id, 'name': label})
         return True
 
     if action == 'pick_region_edit':
-        try:
-            region = Region.objects.get(id=obj_id)
-        except Region.DoesNotExist:
-            send(vk, user_id, 'Регион не найден.', kb_main())
-            return True
         pop_pending(user_id)
-        apply_edit_region(vk, user_id, region)
+        apply_edit_region(vk, user_id, {'id': obj_id, 'display_name': label})
         return True
 
     if action == 'pick_city_edit':
-        try:
-            city = City.objects.get(id=obj_id)
-        except City.DoesNotExist:
-            send(vk, user_id, 'Город не найден.', kb_main())
-            return True
         pop_pending(user_id)
-        apply_edit_city(vk, user_id, city)
+        apply_edit_city(vk, user_id, {'id': obj_id, 'display_name': label})
         return True
 
     return False
@@ -1199,7 +944,6 @@ def notify_loop(vk):
     log.info('Фоновый поток уведомлений запущен')
     while True:
         try:
-            close_old_connections()
             _process_pending_changes(vk)
         except Exception as e:
             log.exception('Ошибка в notify_loop: %s', e)
@@ -1207,38 +951,32 @@ def notify_loop(vk):
 
 
 def _process_pending_changes(vk):
-    changes = (
-        ScheduleChange.objects
-        .filter(notified=False)
-        .select_related('school')
-        .order_by('created_at')
-    )
+    try:
+        changes = api.pending_changes()
+    except ApiError as e:
+        log.warning('Не удалось получить изменения: %s', e)
+        return
     if not changes:
         return
 
     processed_ids = []
 
     for change in changes:
-        subscribers = VkUser.objects.filter(
-            school=change.school,
-            notifications_enabled=True,
-        ).exclude(class_name='')
+        try:
+            vk_ids = api.subscribers(change['school_id'], change.get('class_name', ''))
+        except ApiError as e:
+            log.warning('Не удалось получить подписчиков: %s', e)
+            continue
 
-        if change.class_name:
-            subscribers = subscribers.filter(class_name__iexact=change.class_name)
-
-        day_name = change.get_day_display_display()
+        day_name = DAY_NAMES.get(change['day'], change['day'])
+        klass_line = f"Класс: {change['class_name']}\n" if change.get('class_name') else ''
 
         kb = VkKeyboard(one_time=False)
-        kb.add_button(
-            'Посмотреть расписание',
-            payload={'day': change.day},
-            color=VkKeyboardColor.PRIMARY,
-        )
+        kb.add_button('Посмотреть расписание',
+                      payload={'day': change['day']},
+                      color=VkKeyboardColor.PRIMARY)
         kb.add_line()
         kb.add_button('В меню', color=VkKeyboardColor.SECONDARY)
-
-        klass_line = f'Класс: {change.class_name}\n' if change.class_name else ''
 
         text = (
             'ВНИМАНИЕ\n'
@@ -1249,20 +987,23 @@ def _process_pending_changes(vk):
             'Посмотрите, пожалуйста, актуальное расписание.'
         )
 
-        for user in subscribers:
+        for vk_id in vk_ids:
             try:
-                send(vk, user.vk_id, text, kb)
+                send(vk, vk_id, text, kb)
             except Exception as e:
-                log.warning('Не удалось отправить уведомление %s: %s', user.vk_id, e)
+                log.warning('Не удалось отправить уведомление %s: %s', vk_id, e)
 
-        processed_ids.append(change.id)
+        processed_ids.append(change['id'])
 
     if processed_ids:
-        ScheduleChange.objects.filter(id__in=processed_ids).update(notified=True)
-        log.info('Обработано изменений: %d', len(processed_ids))
+        try:
+            api.mark_notified(processed_ids)
+            log.info('Обработано изменений: %d', len(processed_ids))
+        except ApiError as e:
+            log.warning('Не удалось отметить изменения: %s', e)
 
 
-# ==================== ГЛАВНЫЙ ОБРАБОТЧИК СООБЩЕНИЙ ====================
+# ==================== ГЛАВНЫЙ ОБРАБОТЧИК ====================
 
 def _on_message(vk, event):
     user_id = event.obj.message['from_id']
@@ -1281,7 +1022,6 @@ def _on_message(vk, event):
     if payload and handle_payload(vk, user_id, payload):
         return
 
-    # --- системные команды ---
     if text in ('/start', 'start', 'Начать', 'Главное меню', 'Меню'):
         pop_pending(user_id)
         handle_start(vk, user_id)
@@ -1297,7 +1037,6 @@ def _on_message(vk, event):
         send(vk, user_id, 'Отменено. Главное меню:', kb_main())
         return
 
-    # --- главное меню ---
     if text == 'Расписание':
         pop_pending(user_id)
         handle_schedule_menu(vk, user_id)
@@ -1318,7 +1057,6 @@ def _on_message(vk, event):
         handle_invite(vk, user_id)
         return
 
-    # --- профиль ---
     if text == 'Изменить':
         pop_pending(user_id)
         handle_edit_menu(vk, user_id)
@@ -1346,7 +1084,6 @@ def _on_message(vk, event):
         send(vk, user_id, 'Отменено.', kb_main())
         return
 
-    # --- меню изменения: выбор номером ---
     state = get_pending(user_id)
     if state and state['action'] == 'edit_choose':
         if text in ('1', '1. Регион', 'Регион'):
@@ -1365,17 +1102,11 @@ def _on_message(vk, event):
             pop_pending(user_id)
             start_edit_class(vk, user_id)
             return
-        send(
-            vk, user_id,
-            'Введи номер от 1 до 4 или нажми кнопку.',
-            kb_edit_what(),
-        )
+        send(vk, user_id, 'Введи номер от 1 до 4 или нажми кнопку.', kb_edit_what())
         return
 
-    # --- мастер настройки и изменения: текстовые шаги ---
     if state:
         action = state['action']
-
         if action == 'input_region':
             step_input_region(vk, user_id, text)
             return
@@ -1388,7 +1119,6 @@ def _on_message(vk, event):
         if action == 'input_class':
             step_input_class(vk, user_id, text)
             return
-
         if action == 'edit_region':
             step_edit_region(vk, user_id, text)
             return
@@ -1409,29 +1139,22 @@ def _on_message(vk, event):
             except ValueError:
                 send(vk, user_id, 'Введи номер из списка.', kb_main())
                 return
-            if _process_number_choice(vk, user_id, action, num, state):
-                return
+            _process_number_choice(vk, user_id, action, num, state)
             return
 
         if action == 'confirm_reset':
             send(vk, user_id, 'Нажми "Да" или "Нет".', kb_confirm_reset())
             return
 
-    # --- если ничего не подошло ---
-    u = get_vk_user(user_id)
-    if not is_profile_complete(u):
-        send(
-            vk, user_id,
-            'Профиль не заполнен. Заполним заново.',
-        )
+    profile = get_profile(user_id)
+    if not is_profile_complete(profile):
+        send(vk, user_id, 'Профиль не заполнен. Заполним заново.')
         begin_setup(vk, user_id)
         return
 
-    send(
-        vk, user_id,
-        'Не понимаю команду.\n\nВыбери действие на клавиатуре:',
-        kb_main(),
-    )
+    send(vk, user_id,
+         'Не понимаю команду.\n\nВыбери действие на клавиатуре:',
+         kb_main())
 
 
 # ==================== ГЛАВНЫЙ ЦИКЛ ====================
@@ -1444,17 +1167,25 @@ def main():
     notifier = threading.Thread(target=notify_loop, args=(vk,), daemon=True)
     notifier.start()
 
-    log.info('Бот запущен. Группа: %s', GROUP_ID)
+    log.info('Бот запущен. Группа: %s. Сайт: %s', GROUP_ID, SITE_URL)
 
     for event in longpoll.listen():
         if event.type != VkBotEventType.MESSAGE_NEW:
             continue
         try:
             _on_message(vk, event)
+        except ApiError as e:
+            log.warning('API error: %s', e)
+            try:
+                send(vk, event.obj.message['from_id'],
+                     'Сервис временно недоступен. Попробуй позже.')
+            except Exception:
+                pass
         except Exception as e:
             log.exception('Ошибка обработки: %s', e)
             try:
-                send(vk, event.obj.message['from_id'], 'Произошла ошибка. Попробуй ещё раз.')
+                send(vk, event.obj.message['from_id'],
+                     'Произошла ошибка. Попробуй ещё раз.')
             except Exception:
                 pass
 

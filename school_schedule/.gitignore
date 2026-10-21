@@ -1,0 +1,42 @@
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ==================== Виртуальные окружения ====================
+.venv/
+venv/
+env/
+ENV/
+
+# ==================== Django ====================
+*.log
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+local_settings.py
+
+# ==================== Секреты ====================
+.env
+*.env
+!.env.example
+
+# ==================== IDE ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+
+# ==================== Docker ====================
+# (docker-compose.yml и Dockerfile коммитим — не игнорируем)
